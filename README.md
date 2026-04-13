@@ -1,6 +1,6 @@
 # Claude AI Developer Guide
 
-> Everything you need to know about using Claude Code on this team.
+> Everything you need to know about using Claude Code.
 
 ---
 
