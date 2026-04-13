@@ -70,6 +70,7 @@ REQUIRED=(
     ".claude/commands/teach.md"
     ".claude/commands/scope.md"
     ".claude/commands/debug.md"
+    ".golangci.yml"
 )
 MISSING=0
 for f in "${REQUIRED[@]}"; do
