@@ -1,7 +1,7 @@
 # /tdd — Test-Driven Development Cycle
 
 Run a strict TDD cycle for a specific function or behavior.
-Reference `.claude/skills/go-testing.md` for all test patterns.
+Reference `.claude/skills/go-testing/SKILL.md` for all test patterns.
 
 ## The Cycle — follow EXACTLY:
 
@@ -21,8 +21,8 @@ Reference `.claude/skills/go-testing.md` for all test patterns.
 ### REFACTOR
 1. Ask: "Can we make this cleaner?" Look for:
    - Better names
-   - Guard clauses (from `.claude/skills/go-solid-patterns.md`)
-   - Error wrapping (from `.claude/skills/go-error-handling.md`)
+   - Guard clauses (from `.claude/skills/go-solid-patterns/SKILL.md`)
+   - Error wrapping (from `.claude/skills/go-error-handling/SKILL.md`)
 2. Run tests again. Still green? Good.
 
 ### NEXT CASE

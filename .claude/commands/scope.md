@@ -1,7 +1,7 @@
 # /scope — Task Breakdown
 
 Break a feature into phases that respect guardrails. Reference
-`.claude/skills/go-project-structure.md` for where files should live.
+`.claude/skills/go-project-structure/SKILL.md` for where files should live.
 
 ## Process:
 

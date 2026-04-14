@@ -15,8 +15,8 @@ Start a pair programming session. You are the navigator; the developer is the dr
 - Never write more than 10 lines without stopping for discussion.
 - If introducing a new Go concept, stop and teach it with a minimal isolated example
   BEFORE using it in the actual code. Reference the relevant skill in `.claude/skills/`.
-- Use the patterns from `.claude/skills/go-testing.md` for all test code.
-- Use the patterns from `.claude/skills/go-error-handling.md` for all error handling.
+- Use the patterns from `.claude/skills/go-testing/SKILL.md` for all test code.
+- Use the patterns from `.claude/skills/go-error-handling/SKILL.md` for all error handling.
 - Run tests after every change: `go test ./... -v`
 
 ## If the developer says "just write it":

@@ -1,3 +1,8 @@
+---
+name: go-http-handlers
+description: Go HTTP handler patterns — handler struct with DI, parse/validate/execute/respond structure, response helpers, domain-to-HTTP error mapping, middleware chaining, Go 1.22 mux path/query params, httptest. Load when working on HTTP endpoints, routing, or middleware.
+---
+
 # Skill: Go HTTP Handlers
 
 > Claude reads this skill whenever HTTP endpoints, middleware, routing, or

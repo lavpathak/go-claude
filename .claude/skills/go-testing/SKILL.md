@@ -1,3 +1,8 @@
+---
+name: go-testing
+description: Go testing patterns — table-driven tests with t.Run subtests, t.Helper, t.Cleanup, stubs via interfaces, testing error conditions with errors.Is/As, httptest for HTTP handlers, t.Parallel gotchas. Load whenever Go test code is written or reviewed.
+---
+
 # Skill: Go Testing Patterns
 
 > Claude reads this skill automatically whenever test code is written, reviewed,

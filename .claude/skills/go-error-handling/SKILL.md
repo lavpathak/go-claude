@@ -1,3 +1,8 @@
+---
+name: go-error-handling
+description: Go error handling patterns — wrapping with fmt.Errorf %w, sentinel errors, custom error types, errors.Is/As, multi-error collection with errors.Join, HTTP error mapping. Load whenever errors are created, returned, wrapped, or checked in Go code.
+---
+
 # Skill: Go Error Handling
 
 > Claude reads this skill automatically whenever errors are created, returned,

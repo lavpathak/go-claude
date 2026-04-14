@@ -1,3 +1,8 @@
+---
+name: go-database
+description: Go database patterns — store interface at consumer, Postgres QueryRowContext/QueryContext, defer rows.Close and rows.Err check, transactions with deferred rollback, connection pool tuning, parameterized queries, integration tests. Load for database access, queries, or repositories.
+---
+
 # Skill: Go Database Patterns
 
 > Claude reads this skill whenever database access, queries, repositories,

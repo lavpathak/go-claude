@@ -1,3 +1,8 @@
+---
+name: go-concurrency
+description: Go concurrency patterns — errgroup for parallel tasks, sync.WaitGroup, bounded worker pools via SetLimit, sync.RWMutex for shared state, graceful shutdown, race detector testing. Load when goroutines, channels, mutexes, or async patterns appear.
+---
+
 # Skill: Go Concurrency
 
 > Claude reads this skill whenever goroutines, channels, mutexes, WaitGroups,

@@ -5,7 +5,7 @@ canonical patterns.
 
 ## Process:
 
-1. **Check which skill covers this topic.** Read the relevant `.claude/skills/go-*.md`
+1. **Check which skill covers this topic.** Read the relevant `.claude/skills/go-*/SKILL.md`
    file FIRST. The skill defines the team's canonical patterns.
 
 2. **Explain in plain language.** Start with WHY this concept exists. What problem
@@ -28,14 +28,17 @@ canonical patterns.
 7. **Give a cheat sheet.** 3-5 line reference they can come back to.
 
 ## Skill-to-concept mapping:
-- "error handling" / "errors" → `go-error-handling.md`
-- "testing" / "tests" / "TDD" → `go-testing.md`
-- "interfaces" / "dependency injection" → `go-interfaces.md`
-- "project structure" / "packages" → `go-project-structure.md`
-- "goroutines" / "concurrency" / "channels" → `go-concurrency.md`
-- "SOLID" / "design patterns" / "clean code" → `go-solid-patterns.md`
-- "handlers" / "HTTP" / "middleware" / "API" → `go-http-handlers.md`
-- "database" / "SQL" / "queries" / "transactions" → `go-database.md`
+- "error handling" / "errors" → `go-error-handling/SKILL.md`
+- "testing" / "tests" / "TDD" → `go-testing/SKILL.md`
+- "interfaces" / "dependency injection" → `go-interfaces/SKILL.md`
+- "project structure" / "packages" → `go-project-structure/SKILL.md`
+- "goroutines" / "concurrency" / "channels" → `go-concurrency/SKILL.md`
+- "SOLID" / "design patterns" / "clean code" → `go-solid-patterns/SKILL.md`
+- "handlers" / "HTTP" / "middleware" / "API" → `go-http-handlers/SKILL.md`
+- "database" / "SQL" / "queries" / "transactions" → `go-database/SKILL.md`
+- "context" / "cancellation" / "deadlines" → `go-context/SKILL.md`
+- "logging" / "slog" / "structured logs" → `go-logging/SKILL.md`
+- "config" / "env vars" / "secrets" → `go-configuration/SKILL.md`
 
 ## Rules:
 - Keep code examples under 20 lines.

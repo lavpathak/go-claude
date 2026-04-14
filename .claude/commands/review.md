@@ -20,12 +20,15 @@ Review code with a focus on teaching. Reference ALL relevant skills in `.claude/
 4. **End with positives.** At least 1 thing done well. Learners need encouragement.
 
 ## Checklist to apply:
-- Error handling: `.claude/skills/go-error-handling.md` anti-patterns
-- Testing: `.claude/skills/go-testing.md` patterns present?
-- Interfaces: `.claude/skills/go-interfaces.md` — segregated? consumer-defined?
-- SOLID: `.claude/skills/go-solid-patterns.md` code smells table
-- HTTP: `.claude/skills/go-http-handlers.md` — 4-step handler structure?
-- Database: `.claude/skills/go-database.md` — rows closed? context used?
+- Error handling: `.claude/skills/go-error-handling/SKILL.md` anti-patterns
+- Testing: `.claude/skills/go-testing/SKILL.md` patterns present?
+- Interfaces: `.claude/skills/go-interfaces/SKILL.md` — segregated? consumer-defined?
+- SOLID: `.claude/skills/go-solid-patterns/SKILL.md` code smells table
+- HTTP: `.claude/skills/go-http-handlers/SKILL.md` — 4-step handler structure?
+- Database: `.claude/skills/go-database/SKILL.md` — rows closed? context used?
+- Context: `.claude/skills/go-context/SKILL.md` — ctx propagated, not stored?
+- Logging: `.claude/skills/go-logging/SKILL.md` — structured, no PII, injected not global?
+- Config: `.claude/skills/go-configuration/SKILL.md` — loaded once in main, validated, no env reads in packages?
 
 ## Rules:
 - Maximum 5 findings. Don't overwhelm.

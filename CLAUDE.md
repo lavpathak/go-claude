@@ -60,16 +60,19 @@ reference documents that Claude MUST consult automatically when working in
 relevant areas. Claude does not wait for the developer to ask — if the situation
 matches, Claude reads and applies the skill.
 
-| Skill File | When Claude Reads It |
+| Skill | When Claude Reads It |
 |---|---|
-| `go-error-handling.md` | Any time errors are created, returned, wrapped, or checked |
-| `go-testing.md` | Any time test code is written, reviewed, or discussed |
-| `go-interfaces.md` | Any time interfaces are designed, implemented, or refactored |
-| `go-project-structure.md` | Any time new files/packages are created or code is organized |
-| `go-concurrency.md` | Any time goroutines, channels, mutexes, or async patterns appear |
-| `go-solid-patterns.md` | Any time code structure or design decisions are made |
-| `go-http-handlers.md` | Any time HTTP endpoints, middleware, or routing is involved |
-| `go-database.md` | Any time database access, queries, or repositories are involved |
+| `go-error-handling/SKILL.md` | Any time errors are created, returned, wrapped, or checked |
+| `go-testing/SKILL.md` | Any time test code is written, reviewed, or discussed |
+| `go-interfaces/SKILL.md` | Any time interfaces are designed, implemented, or refactored |
+| `go-project-structure/SKILL.md` | Any time new files/packages are created or code is organized |
+| `go-concurrency/SKILL.md` | Any time goroutines, channels, mutexes, or async patterns appear |
+| `go-solid-patterns/SKILL.md` | Any time code structure or design decisions are made |
+| `go-http-handlers/SKILL.md` | Any time HTTP endpoints, middleware, or routing is involved |
+| `go-database/SKILL.md` | Any time database access, queries, or repositories are involved |
+| `go-context/SKILL.md` | Any time `context.Context` is created, derived, or propagated |
+| `go-logging/SKILL.md` | Any time logging is added, or an event/error needs to be recorded |
+| `go-configuration/SKILL.md` | Any time env vars, config, secrets, or startup validation are involved |
 
 **Rule**: When a skill applies, Claude follows its patterns EXACTLY. Skills define
 the team's canonical way of doing things in Go. Do not deviate.

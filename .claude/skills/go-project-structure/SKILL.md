@@ -1,3 +1,8 @@
+---
+name: go-project-structure
+description: Go project layout — cmd/, internal/, domain-oriented packages, package naming (single lowercase word), cross-domain dependency rules, composition root in main.go with DI. Load when creating Go packages/files or organizing code.
+---
+
 # Skill: Go Project Structure
 
 > Claude reads this skill automatically whenever new files or packages are

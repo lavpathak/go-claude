@@ -1,3 +1,8 @@
+---
+name: go-solid-patterns
+description: SOLID principles applied to Go — SRP at function and package level, OCP via interfaces, LSP substitutability, ISP, DIP via constructor injection, guard clauses, avoiding package-level state and init(). Load when making structure or design decisions.
+---
+
 # Skill: Go SOLID Patterns
 
 > Claude reads this skill whenever code structure or design decisions are being

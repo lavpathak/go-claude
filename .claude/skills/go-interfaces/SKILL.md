@@ -1,3 +1,8 @@
+---
+name: go-interfaces
+description: Go interface design — accept interfaces/return structs, define interfaces at the consumer, small segregated interfaces, composition, compile-time satisfaction checks, -er naming convention, functional options. Load when designing, implementing, or refactoring Go interfaces.
+---
+
 # Skill: Go Interfaces
 
 > Claude reads this skill automatically whenever interfaces are designed,
