@@ -152,7 +152,7 @@ func (v *StrictValidator) Validate(input Input) error {
 ## Interface Segregation Principle
 
 Don't force consumers to depend on methods they don't use.
-(See `go-interfaces.md` skill for detailed patterns.)
+(See `go-interfaces/SKILL.md` skill for detailed patterns.)
 
 ```go
 // ❌ A function that only reads users shouldn't require write capability

@@ -31,14 +31,17 @@ CLAUDE.md                                ← Master rules. Claude reads this fir
   hooks.json                             ← Automated checks during Claude sessions
 
   skills/                                ← PASSIVE: Claude reads these automatically
-    go-error-handling.md                   Error patterns, wrapping, sentinel errors
-    go-testing.md                          Table-driven tests, helpers, mocking
-    go-interfaces.md                       Interface design, composition, naming
-    go-project-structure.md                Package layout, naming, file organization
-    go-concurrency.md                      Goroutines, channels, sync, errgroup
-    go-solid-patterns.md                   SOLID principles applied to Go
-    go-http-handlers.md                    Handler structure, middleware, routing
-    go-database.md                         Repository pattern, queries, transactions
+    go-error-handling/SKILL.md             Error patterns, wrapping, sentinel errors
+    go-testing/SKILL.md                    Table-driven tests, helpers, mocking
+    go-interfaces/SKILL.md                 Interface design, composition, naming
+    go-project-structure/SKILL.md          Package layout, naming, file organization
+    go-concurrency/SKILL.md                Goroutines, channels, sync, errgroup
+    go-solid-patterns/SKILL.md             SOLID principles applied to Go
+    go-http-handlers/SKILL.md              Handler structure, middleware, routing
+    go-database/SKILL.md                   Repository pattern, queries, transactions
+    go-context/SKILL.md                    context.Context propagation and cancellation
+    go-logging/SKILL.md                    Structured logging with log/slog
+    go-configuration/SKILL.md              Env vars, config loading, startup validation
 
   commands/                              ← ACTIVE: You trigger these with /command
     pair.md                                /pair — Pair programming session
@@ -104,14 +107,14 @@ a relevant situation. You never invoke them. Claude just applies them.
 
 ```
 You say:    "Let's write the error handling for this function"
-Claude:     (internally reads go-error-handling.md)
+Claude:     (internally reads go-error-handling/SKILL.md)
 Claude:     "Let's use error wrapping with fmt.Errorf and the %w verb.
              Here's our team's pattern for this..."
 ```
 
 **Claude is automatically consistent.** Every time it writes error handling, it
-follows the same patterns from `go-error-handling.md`. Every test uses the
-table-driven format from `go-testing.md`. You don't have to remind it.
+follows the same patterns from `go-error-handling/SKILL.md`. Every test uses the
+table-driven format from `go-testing/SKILL.md`. You don't have to remind it.
 
 ### Why Both?
 
@@ -119,7 +122,7 @@ table-driven format from `go-testing.md`. You don't have to remind it.
 |---|---|---|
 | You want to start a structured workflow | **Command** | `/pair`, `/tdd`, `/scope` |
 | Claude writes or reviews Go code | **Skill** (automatic) | Error handling, testing patterns |
-| You want to learn something | **Command** triggers, **Skill** provides content | `/teach interfaces` reads `go-interfaces.md` |
+| You want to learn something | **Command** triggers, **Skill** provides content | `/teach interfaces` reads `go-interfaces/SKILL.md` |
 | Claude reviews your code | **Command** triggers, **Skills** provide checklists | `/review` checks all skill anti-patterns |
 
 ---
@@ -285,44 +288,59 @@ Claude:  Good instinct. Let's check: how is the handler created in the test?
 Skills fire automatically. You don't need to invoke them. But understanding what
 they contain helps you know what to expect from Claude.
 
-### go-error-handling.md
+### go-error-handling/SKILL.md
 Covers error wrapping with `%w`, sentinel errors (`ErrNotFound`), custom error
 types (`ValidationError`), the `errors.Is`/`errors.As` patterns, and the rule
 about logging OR returning an error — never both.
 
-### go-testing.md
+### go-testing/SKILL.md
 Covers table-driven tests (the team standard), test helpers with `t.Helper()`,
 stub/fake patterns for dependency injection, testing HTTP handlers with
 `httptest`, and the rule about building test cases incrementally.
 
-### go-interfaces.md
+### go-interfaces/SKILL.md
 Covers consumer-side interface definition, keeping interfaces small (1-3 methods),
 composition, the compile-time check trick (`var _ Interface = (*Type)(nil)`),
 and naming conventions.
 
-### go-project-structure.md
+### go-project-structure/SKILL.md
 Covers the standard layout (`cmd/`, `internal/`, `pkg/`), package naming rules,
 the `internal/` visibility boundary, and the composition root pattern in `main.go`.
 
-### go-concurrency.md
+### go-concurrency/SKILL.md
 Covers `errgroup` (preferred), `sync.WaitGroup`, `sync.Mutex`, worker pools,
 graceful shutdown, and — critically — when NOT to use concurrency. This skill
 gates concurrency introduction behind demonstrated need.
 
-### go-solid-patterns.md
+### go-solid-patterns/SKILL.md
 Covers Single Responsibility, Open/Closed, Liskov Substitution, Interface
 Segregation, and Dependency Inversion as they apply specifically to Go. Also
 covers constructor injection, guard clauses, and avoiding package-level state.
 
-### go-http-handlers.md
+### go-http-handlers/SKILL.md
 Covers the 4-step handler structure (Parse → Validate → Execute → Respond),
 response helpers, request/response type separation, middleware patterns, and
 the rule that handlers contain zero business logic.
 
-### go-database.md
+### go-database/SKILL.md
 Covers the repository/store pattern, parameterized queries, transaction handling
 with `defer tx.Rollback()`, connection pool configuration, and the rule that SQL
 never appears in the service layer.
+
+### go-context/SKILL.md
+Covers the `context.Context` first-param convention, propagation through call
+chains, `WithTimeout`/`WithDeadline`/`WithCancel` with deferred cancel,
+`WithValue` with typed keys, and respecting cancellation in long operations.
+
+### go-logging/SKILL.md
+Covers structured logging with `log/slog`, key-value pairs over sprintf, log
+levels, logger injection via constructor (no globals), PII/secret redaction,
+correlation via context, and the log-OR-return rule.
+
+### go-configuration/SKILL.md
+Covers a single `Config` struct loaded once in `main`, env-var loading with
+validation and fail-fast on startup, no `os.Getenv` in internal packages,
+secrets never committed or logged, and test-friendly config construction.
 
 ---
 
@@ -376,8 +394,8 @@ Claude:  /tdd product search model
 You:     /pair Let's build the handler now
 
 Claude:  [Pair programs through Phase 2, handler + tests]
-         [Automatically applies go-http-handlers.md patterns]
-         [Automatically applies go-error-handling.md patterns]
+         [Automatically applies go-http-handlers/SKILL.md patterns]
+         [Automatically applies go-error-handling/SKILL.md patterns]
          [Runs make check at the end]
 ```
 
@@ -387,7 +405,7 @@ Claude:  [Pair programs through Phase 2, handler + tests]
 You:     /debug TestProductSearch returns wrong results
 
 Claude:  [Guides you through reproducing, hypothesizing, narrowing]
-         [Uses go-testing.md patterns to add a regression test]
+         [Uses go-testing/SKILL.md patterns to add a regression test]
          [Teaches you the debugging technique, not just the fix]
 ```
 
@@ -396,7 +414,7 @@ Claude:  [Guides you through reproducing, hypothesizing, narrowing]
 ```
 You:     /teach What is this interface composition pattern I see in store.go?
 
-Claude:  [Reads go-interfaces.md, teaches composition]
+Claude:  [Reads go-interfaces/SKILL.md, teaches composition]
          [Shows example from your actual codebase]
          [Asks comprehension question]
 ```
@@ -489,6 +507,8 @@ Example: `feat(user): add email validation with regex pattern`
 │  go-testing           go-project-structure       │
 │  go-concurrency       go-solid-patterns          │
 │  go-http-handlers     go-database                │
+│  go-context           go-logging                 │
+│  go-configuration                                │
 ├──────────────────────────────────────────────────┤
 │  LIMITS                                          │
 │  5 files / task    200 lines / task              │
