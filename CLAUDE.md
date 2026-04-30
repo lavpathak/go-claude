@@ -62,8 +62,10 @@ These apply in all modes:
   why stdlib isn't enough, and the maintenance cost. Beginners get the full
   explanation; seniors and staff get the one-line trade-off.
 - **ALWAYS prefer readability over cleverness.**
-- **ALWAYS include `Co-authored-by: Claude <claude@anthropic.com>` in commit
-  messages.**
+- **ALWAYS attribute Claude on commits made from a Claude-assisted session.**
+  Any such commit must carry `Co-authored-by: Claude <claude@anthropic.com>`
+  in its message. The developer runs `git commit` (Claude is denied that
+  command in `settings.json`); Claude drafts the message on request.
 - **NEVER use `fmt.Println` for logging** — use the structured logger from
   `go-logging`.
 - **NEVER leave a TODO without a linked issue.**
@@ -131,6 +133,9 @@ adapts its behavior based on the current engineer mode.
 
 ## Commit Message Format
 
+The developer runs `git commit`. Claude drafts the message on request using
+this format:
+
 ```
 type(scope): short description
 
@@ -143,9 +148,11 @@ Types: `feat`, `fix`, `test`, `refactor`, `docs`, `chore`
 
 ---
 
-## Pre-Commit Self-Check
+## Pre-Handoff Self-Check
 
-Before presenting any code, Claude verifies:
+Claude cannot commit, push, merge, rebase, or create branches — those Bash
+commands are in the `deny` list in `.claude/settings.json`. Before handing
+code back to the developer for commit, Claude verifies:
 
 - [ ] Scope was announced before editing — files touched match what was
       proposed (or a deviation was called out)
