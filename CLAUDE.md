@@ -144,7 +144,12 @@ Longer description of WHY, not WHAT.
 Co-authored-by: Claude <claude@anthropic.com>
 ```
 
-Types: `feat`, `fix`, `test`, `refactor`, `docs`, `chore`
+Types: `feat`, `fix`, `test`, `refactor`, `docs`, `chore`, `build`, `ci`,
+`perf`, `style`
+
+The `commit-msg` hook (`.claude/hooks/commit-msg.sh`) enforces both the
+type/scope format and the `Co-authored-by: Claude` trailer. To bypass for a
+non-Claude-assisted commit: `git commit --no-verify`.
 
 ---
 

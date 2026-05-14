@@ -26,7 +26,11 @@
       "Bash(make test)",
       "Bash(make lint)",
       "Bash(make vet)",
-      "Bash(make fmt)"
+      "Bash(make fmt)",
+      "Bash(docker compose up *)",
+      "Bash(docker compose down *)",
+      "Bash(docker compose ps)",
+      "Bash(docker compose logs *)"
     ],
     "deny": [
       "Bash(go install *)",
@@ -40,7 +44,11 @@
       "Bash(curl *)",
       "Bash(wget *)",
       "Bash(sudo *)",
-      "Bash(docker *)",
+      "Bash(docker run *)",
+      "Bash(docker exec *)",
+      "Bash(docker rm *)",
+      "Bash(docker rmi *)",
+      "Bash(docker system *)",
       "Bash(kubectl *)"
     ]
   }

@@ -1,1 +1,22 @@
 .DS_Store
+
+# Test / coverage output
+coverage.out
+coverage.html
+*.test
+*.out
+
+# Build artifacts
+/bin/
+/dist/
+
+# Vendored deps (only if vendoring; safe default to ignore)
+vendor/
+
+# Editor / IDE
+.idea/
+.vscode/
+*.swp
+
+# Local Claude overrides (kept out of the team golden repo)
+.claude/settings.local.json

@@ -2,17 +2,17 @@
   "hooks": {
     "PostToolUse": [
       {
-        "matcher": "write|edit|create",
+        "matcher": "Write|Edit|MultiEdit",
         "description": "Check file count guardrail after any file modification",
         "command": "bash -c 'MODIFIED=$(git diff --name-only 2>/dev/null | wc -l); STAGED=$(git diff --cached --name-only 2>/dev/null | wc -l); TOTAL=$((MODIFIED + STAGED)); if [ \"$TOTAL\" -gt 5 ]; then echo \"⚠️ GUARDRAIL: $TOTAL files modified (limit: 5). Run /scope to break this down.\"; fi'"
       },
       {
-        "matcher": "write|edit|create",
+        "matcher": "Write|Edit|MultiEdit",
         "description": "Run go vet after writing Go files",
         "command": "bash -c 'if git diff --name-only 2>/dev/null | grep -q \"\\.go$\"; then go vet ./... 2>&1 || echo \"⚠️ go vet found issues\"; fi'"
       }
     ],
-    "PostResponse": [
+    "Stop": [
       {
         "matcher": ".*",
         "description": "TDD reminder when Go files change without test files",
