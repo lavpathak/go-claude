@@ -1,5 +1,8 @@
 # /scope — Task Breakdown
 
+> Supersedes `agent-skills:planning-and-task-breakdown` / `agent-skills:plan` in this repo.
+> See CLAUDE.md → Skills & Commands Hierarchy.
+
 Break a feature into phases that respect guardrails. Reference
 `.claude/skills/go-project-structure/SKILL.md` for where files should live.
 

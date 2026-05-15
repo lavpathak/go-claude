@@ -1,5 +1,8 @@
 # /debug — Guided Debugging
 
+> Supersedes `agent-skills:debugging-and-error-recovery` in this repo.
+> See CLAUDE.md → Skills & Commands Hierarchy.
+
 Guide the developer through systematic debugging. Teach the PROCESS — don't
 just find and fix the bug.
 

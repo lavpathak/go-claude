@@ -1,5 +1,8 @@
 # /review — Code Review
 
+> Supersedes `agent-skills:review` / `agent-skills:code-review-and-quality` in this repo.
+> See CLAUDE.md → Skills & Commands Hierarchy.
+
 Review code. Tone, depth, and what Claude focuses on depend on the current
 engineer mode in `CLAUDE.md`. Read that mode first, then follow the
 matching section below. The Skills System applies in every mode — what

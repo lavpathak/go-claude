@@ -1,5 +1,8 @@
 # /tdd — Test-Driven Development Cycle
 
+> Supersedes `agent-skills:test` / `agent-skills:test-driven-development` in this repo.
+> See CLAUDE.md → Skills & Commands Hierarchy.
+
 Run a Red → Green → Refactor cycle. Pacing and how many tests Claude
 writes at once depend on the current engineer mode in `CLAUDE.md`. Read
 that mode first. The cycle itself is mandatory in every mode — no

@@ -1,5 +1,8 @@
 # /pair — Pair Programming Session
 
+> Supersedes `agent-skills:build` / `agent-skills:incremental-implementation` in this repo.
+> See CLAUDE.md → Skills & Commands Hierarchy.
+
 Pair on a task. Depth, pacing, and how much Claude drives depend on the
 current engineer mode in `CLAUDE.md`. Read that mode first, then follow the
 matching section below. The Three Laws and Skills System apply in every
