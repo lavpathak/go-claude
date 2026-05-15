@@ -3,20 +3,38 @@
     "PostToolUse": [
       {
         "matcher": "Write|Edit|MultiEdit",
-        "description": "Check file count guardrail after any file modification",
-        "command": "bash -c 'MODIFIED=$(git diff --name-only 2>/dev/null | wc -l); STAGED=$(git diff --cached --name-only 2>/dev/null | wc -l); TOTAL=$((MODIFIED + STAGED)); if [ \"$TOTAL\" -gt 5 ]; then echo \"⚠️ GUARDRAIL: $TOTAL files modified (limit: 5). Run /scope to break this down.\"; fi'"
-      },
-      {
-        "matcher": "Write|Edit|MultiEdit",
-        "description": "Run go vet after writing Go files",
-        "command": "bash -c 'if git diff --name-only 2>/dev/null | grep -q \"\\.go$\"; then go vet ./... 2>&1 || echo \"⚠️ go vet found issues\"; fi'"
+        "hooks": [
+          {
+            "type": "command",
+            "command": "bash -c 'MODIFIED=$(git diff --name-only 2>/dev/null | wc -l); STAGED=$(git diff --cached --name-only 2>/dev/null | wc -l); TOTAL=$((MODIFIED + STAGED)); if [ \"$TOTAL\" -gt 5 ]; then echo \"⚠️ GUARDRAIL: $TOTAL files modified (limit: 5). Run /scope to break this down.\"; fi'"
+          },
+          {
+            "type": "command",
+            "command": "bash -c 'if git diff --name-only 2>/dev/null | grep -q \"\\.go$\"; then go vet ./... 2>&1 || echo \"⚠️ go vet found issues\"; fi'"
+          }
+        ]
       }
     ],
     "Stop": [
       {
         "matcher": ".*",
-        "description": "TDD reminder when Go files change without test files",
-        "command": "bash -c 'NEW_GO=$(git diff --name-only 2>/dev/null | grep \"\\.go$\" | grep -v \"_test.go\" || true); NEW_TESTS=$(git diff --name-only 2>/dev/null | grep \"_test.go\" || true); if [ -n \"$NEW_GO\" ] && [ -z \"$NEW_TESTS\" ]; then echo \"📝 TDD Reminder: Go files were modified but no test files changed. Tests come first!\"; fi'"
+        "hooks": [
+          {
+            "type": "command",
+            "command": "bash -c 'NEW_GO=$(git diff --name-only 2>/dev/null | grep \"\\.go$\" | grep -v \"_test.go\" || true); NEW_TESTS=$(git diff --name-only 2>/dev/null | grep \"_test.go\" || true); if [ -n \"$NEW_GO\" ] && [ -z \"$NEW_TESTS\" ]; then echo \"📝 TDD Reminder: Go files were modified but no test files changed. Tests come first!\"; fi'"
+          }
+        ]
+      }
+    ],
+    "SessionStart": [
+      {
+        "matcher": ".*",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "bash -c 'echo \"📌 TEAM RULE: Local commands (/pair, /tdd, /review, /scope, /debug, /teach, /mode) and .claude/skills/go-* always take precedence over agent-skills:*. agent-skills is consulted ONLY for lifecycle phases not covered locally (spec, ship, security, performance, ADRs, CI/CD, idea-refine, source-driven). See CLAUDE.md → Skills & Commands Hierarchy.\"'"
+          }
+        ]
       }
     ]
   }

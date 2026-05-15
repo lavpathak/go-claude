@@ -114,6 +114,52 @@ much Claude narrates* the skill; it never controls whether the skill applies.
 
 ---
 
+## Skills & Commands Hierarchy
+
+This repo coexists with the `agent-skills` plugin, which provides generic
+lifecycle commands and skills (`agent-skills:test`, `:review`, `:plan`,
+`:build`, `:spec`, `:ship`, etc.). To prevent ambiguity:
+
+> **Local commands and skills always take precedence over `agent-skills:*`.
+> agent-skills is consulted ONLY for lifecycle phases not covered locally.**
+
+### Partition
+
+| Concern | Owner | Notes |
+|---|---|---|
+| Mode pacing | Local `/mode` | No agent-skills equivalent |
+| Pair programming | Local `/pair` | Mode-aware |
+| TDD cycle | Local `/tdd` | Mode-aware |
+| Code review | Local `/review` | Mode-aware tier framing |
+| Task breakdown into phases | Local `/scope` | 5-file/200-line phasing |
+| Guided debugging | Local `/debug` | Socratic in beginner mode |
+| Go concept teaching | Local `/teach` | No agent-skills equivalent |
+| Go-specific patterns | Local `.claude/skills/go-*` | No overlap |
+| Spec-driven development | `agent-skills:spec` | Gap — local doesn't cover |
+| Idea refinement | `agent-skills:idea-refine` | Gap |
+| Pre-launch / shipping | `agent-skills:ship` | Gap |
+| Security / hardening | `agent-skills:security-and-hardening` | Gap (complements `gosec`) |
+| Performance | `agent-skills:performance-optimization` | Gap |
+| ADRs / docs | `agent-skills:documentation-and-adrs` | Gap |
+| CI/CD setup | `agent-skills:ci-cd-and-automation` | Gap |
+| Source-grounded coding | `agent-skills:source-driven-development` | Use when introducing new libraries |
+
+Frontend / browser-testing agent-skills are not relevant in this Go
+backend repo; ignore them.
+
+### Tiebreaker
+
+When a local command and an agent-skill cover the same concern, **use the
+local one**. Local commands are mode-aware; agent-skills are not. Mode-
+awareness is the most distinctive thing about this template — losing it
+would defeat the purpose of having a team golden repo.
+
+A `SessionStart` hook (`.claude/hooks.json`) prints this rule each session
+so Claude sees it with the same prominence as the agent-skills system
+reminder.
+
+---
+
 ## Commands System
 
 Developers trigger workflows explicitly with slash commands. Each command
