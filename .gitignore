@@ -17,6 +17,7 @@ vendor/
 .idea/
 .vscode/
 *.swp
+*~
 
 # Local Claude overrides (kept out of the team golden repo)
 .claude/settings.local.json
