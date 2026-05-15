@@ -14,7 +14,7 @@
 6. [The Commands](#the-commands)
 7. [The Skills](#the-skills)
 8. [Guardrails Explained](#guardrails-explained)
-9. [Workflow Examples](#workflow-examples)
+9. [Example Sessions](#example-sessions)
 10. [What Claude Will and Won't Do](#what-claude-will-and-wont-do)
 11. [Troubleshooting](#troubleshooting)
 12. [Growing With the System](#growing-with-the-system)
@@ -225,6 +225,43 @@ and it will correct.
 | Claude writes or reviews Go code | **Skill** (consulted in context) | Error handling, testing patterns |
 | You want to learn something | **Command** triggers, **Skill** provides content | `/teach interfaces` references `go-interfaces/SKILL.md` |
 | Claude reviews your code | **Command** triggers, **Skills** provide the rubric | `/review` checks against the patterns documented in the skills |
+
+### Local Commands and Skills vs. `agent-skills`
+
+This repo coexists with the `agent-skills` plugin, which ships generic
+lifecycle commands and skills (`agent-skills:spec`, `:ship`, `:review`,
+`:plan`, `:build`, etc.). To avoid ambiguity, CLAUDE.md establishes a
+hard partition:
+
+> **Local commands (`/pair`, `/tdd`, `/review`, `/scope`, `/debug`,
+> `/teach`, `/mode`) and `.claude/skills/go-*` always take precedence
+> over `agent-skills:*`.** `agent-skills` is consulted only for
+> lifecycle phases the local set does not cover.
+
+Why the partition matters: local commands are *mode-aware* — their
+prompt files branch on `beginner` / `senior` / `staff` and adapt
+pacing, idiom commentary, and scope accordingly. `agent-skills` are
+not mode-aware. If both could fire, mode discipline would erode.
+
+Each local command's prompt file now carries a one-line note about
+which `agent-skill` it supersedes, so the relationship is documented
+where Claude reads it.
+
+| Concern | Owner |
+|---|---|
+| Mode pacing, pair, TDD, review, scope, debug, teach | Local commands |
+| Go-specific patterns (error handling, testing, HTTP, etc.) | Local `.claude/skills/go-*` |
+| Spec authoring, idea refinement | `agent-skills:spec`, `:idea-refine` |
+| Pre-launch / shipping | `agent-skills:ship` |
+| Security hardening (complements `gosec` lint) | `agent-skills:security-and-hardening` |
+| Performance optimization | `agent-skills:performance-optimization` |
+| ADRs and decision docs | `agent-skills:documentation-and-adrs` |
+| CI/CD setup | `agent-skills:ci-cd-and-automation` |
+| Source-grounded coding for new libraries | `agent-skills:source-driven-development` |
+
+A `SessionStart` hook is intended to print this rule each session so
+it stays visible. (Frontend / browser-testing `agent-skills` are not
+relevant in a Go backend repo and are ignored.)
 
 ---
 
@@ -550,242 +587,15 @@ is a behavioral rule from CLAUDE.md, not enforced by the hook.
 
 ---
 
-## Workflow Examples
-
-### Example 1: "I need to add a new API endpoint"
-
-```
-You:     /scope Add a product search endpoint with filtering
-
-Claude:  [Breaks into 3 phases, each ≤5 files]
-
-You:     Let's start Phase 1
-
-Claude:  /tdd product search model
-
-         [Walks through TDD cycle for Product struct and filter types]
-
-You:     /pair Let's build the handler now
-
-Claude:  [Pair programs through Phase 2, handler + tests]
-         [Follows go-http-handlers/SKILL.md for handler structure]
-         [Follows go-error-handling/SKILL.md for error wrapping]
-         [Runs `make check` at the end]
-```
-
-### Example 2: "This test is failing and I don't know why"
-
-```
-You:     /debug TestProductSearch returns wrong results
-
-Claude:  [Guides you through reproducing, hypothesizing, narrowing]
-         [Uses go-testing/SKILL.md patterns to add a regression test]
-         [Teaches you the debugging technique, not just the fix]
-```
-
-### Example 3: "What does this code do?"
-
-```
-You:     /teach What is this interface composition pattern I see in store.go?
-
-Claude:  [References go-interfaces/SKILL.md, teaches composition]
-         [Shows an example from your actual codebase]
-         [Ends with a comprehension question]
-```
-
----
-
-## Same Task, Three Modes
-
-The clearest way to feel the difference between modes is to see the same
-request handled three ways. Mode never changes *what* Claude does — it
-changes *how Claude narrates and paces* the work.
-
-### Request: "Add a rate limiter to the login endpoint"
-
-#### `beginner` mode
-
-```
-You:     Add a rate limiter to the login endpoint.
-
-Claude:  Before we touch code, let me check you're set up for this. Rate
-         limiting in Go is usually one of three things:
-           1. A token bucket (golang.org/x/time/rate)
-           2. A fixed window counter in Redis
-           3. A leaky bucket via middleware
-
-         Which one is right depends on whether you want per-IP or
-         per-user limiting, and whether you have Redis available.
-
-         Quick questions:
-         - Per-IP or per-user?
-         - Single instance or behind a load balancer?
-
-You:     Per-IP, single instance for now.
-
-Claude:  Good — that means option 1 (token bucket, in-memory) is the
-         right call. It's stdlib-adjacent (golang.org/x/time/rate is the
-         official extended stdlib) so no real dependency cost.
-
-         Scope I'm proposing (3 files):
-         - internal/middleware/ratelimit.go        (new)
-         - internal/middleware/ratelimit_test.go   (new)
-         - cmd/api/routes.go                       (wire it up)
-
-         Before we start: rate.Limiter is concurrency-safe but the *map*
-         of limiters per IP is not — we'll need a sync.RWMutex. I'll
-         walk through that when we get there.
-
-         Shall we start with the failing test?
-```
-
-#### `senior` mode
-
-```
-You:     Add a rate limiter to the login endpoint.
-
-Claude:  Plan: token-bucket middleware via golang.org/x/time/rate, keyed
-         by IP, sync.Map for the limiter cache, 5 req/min burst 10.
-         Three files: middleware/ratelimit.go + test + routes.go wiring.
-
-         Push back if you want per-user instead, or Redis-backed for
-         multi-instance.
-
-You:     Go.
-
-Claude:  [Writes failing test → passes → wires it up → runs make check]
-         [Calls out one non-obvious choice: "Used sync.Map over RWMutex
-          + map because read-heavy access pattern."]
-```
-
-#### `staff` mode
-
-```
-You:     Add a rate limiter to the login endpoint.
-
-Claude:  Before code, the design questions worth pinning down:
-
-         1. Blast radius: in-memory limiter is fine for one instance,
-            but the moment we add a second pod, an attacker gets
-            N× the budget. If multi-instance is on the 6-month
-            roadmap, build it Redis-backed now — the migration cost
-            later is higher than the upfront complexity.
-
-         2. Failure mode: what happens when the limiter store is
-            unavailable? Fail-open (allow all) leaks the protection;
-            fail-closed (deny all) turns a Redis blip into a full
-            login outage. I'd default fail-open with a loud metric.
-
-         3. Observability: this needs a counter (rejections by IP)
-            and an alert. Without it, we won't know if the limiter
-            is doing anything or if it's blocking real users.
-
-         4. Bypass policy: do we exempt internal IPs / health checks?
-            If yes, that exemption list is a config concern.
-
-         My recommendation: in-memory token bucket *now*, behind an
-         interface so the Redis swap is a one-file change later.
-         Decide on fail-open vs fail-closed before I write a line.
-
-         Which of those four do you want to nail down first?
-```
-
-Notice what's identical across modes: skills still apply, TDD is still
-mandatory, scope is still announced, the same files get touched. What
-changes is the *conversation*.
-
----
-
-## More Examples by Mode
-
-### `beginner` — Learning a concept while shipping
-
-```
-You:     /teach context cancellation
-
-Claude:  Let me ground this in something you'll actually hit. Imagine a
-         user opens your /search endpoint, then closes their browser tab
-         halfway through. Without context, your handler keeps running:
-         querying the DB, calling downstream services, burning CPU for
-         a response no one will read.
-
-         context.Context is Go's answer. Every blocking call (DB query,
-         HTTP request, channel receive) takes a ctx, and when the
-         request is cancelled, the ctx fires Done() and those calls
-         return early.
-
-         Three rules our team follows (from go-context/SKILL.md):
-           1. ctx is always the first parameter.
-           2. Never store ctx on a struct.
-           3. Always defer cancel() when you create one with WithTimeout.
-
-         Want to try it? Pick a function in our codebase that does a DB
-         call and doesn't take ctx — we'll add it together as a real
-         change.
-```
-
-### `senior` — Triaging a flaky test
-
-```
-You:     /debug TestProcessOrders is flaky in CI, passes locally.
-
-Claude:  Three usual suspects for "passes local, flakes CI": time
-         dependence, goroutine leak between tests, or shared state in
-         a test container.
-
-         Fastest signal: run it locally with -race -count=50.
-         If it fails, it's a data race. If it passes, it's environmental.
-
-         Want me to run that and report?
-
-You:     Do it.
-
-Claude:  [Runs go test -race -count=50 -run TestProcessOrders ./...]
-         Hit it on iteration 17. DATA RACE on orderQueue.items —
-         processor goroutine reads, test goroutine appends. Fix is a
-         sync.Mutex on orderQueue or a channel-based handoff.
-
-         Recommend the channel — it removes the shared state entirely
-         instead of guarding it. Two files. Want me to write it?
-```
-
-### `staff` — Architecture review before code
-
-```
-You:     We need to add async job processing. Email sending, report
-         generation, that kind of thing.
-
-Claude:  Before a single line — the decisions worth making explicit:
-
-         Delivery semantics: at-least-once is the only sane default
-         for email/reports. That means idempotency is the consumer's
-         job. Worth deciding now whether each job type carries a
-         dedupe key or whether handlers must be naturally idempotent.
-
-         Backing store: three real options.
-           - Postgres + SELECT FOR UPDATE SKIP LOCKED. Zero new infra,
-             fine to ~100 jobs/sec, dies past that.
-           - Redis + Streams. Fast, but no durability guarantees
-             unless you configure AOF, and ops cost goes up.
-           - SQS / Cloud Tasks. Operationally cheapest, vendor lock-in,
-             ~50ms latency floor.
-
-         Given this team's current scale (single Postgres, no Redis in
-         prod), Postgres-backed is the right call until it's not. The
-         migration to a real queue later is bounded — one interface,
-         one handler runtime.
-
-         Failure mode I want to flag: if the worker crashes mid-job,
-         at-least-once means the next worker re-runs it. That's
-         catastrophic for "send email" without a dedupe key. Either
-         we add an outbox table with a (job_id, handler) unique
-         constraint, or we accept that users sometimes get two emails.
-
-         Three things I need from you before designing the interface:
-           1. Postgres-backed acceptable for v1?
-           2. Idempotency: dedupe key per job, or handler-enforced?
-           3. Acceptable latency floor — sub-second, or minutes okay?
-```
+## Example Sessions
+
+Full session transcripts for all three modes — including a complete
+TDD cycle, a senior-pace ship-it-in-one-sitting flow, and a staff-mode
+design conversation that hands off to `agent-skills:spec` — live in
+[**example.md**](./example.md).
+
+That file is the right place to calibrate "what should a session in
+this repo sound like at my current mode?" before you start a real one.
 
 ---
 
