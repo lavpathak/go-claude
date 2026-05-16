@@ -1,514 +1,1411 @@
-# Example Sessions
+# Example Sessions — Working Sessions With Claude
 
-> Three full session transcripts — one per engineer mode — showing what
-> a real working session in this repo actually feels like.
+> Real, turn-by-turn transcripts of live working sessions in this repo.
+> Each session shows what pairing with Claude actually feels like at a
+> given mode, against a real task. User messages are verbatim. Claude's
+> responses are verbatim as sent (markdown rendered). Tool calls are
+> compressed into one-line summaries in square brackets.
+>
+> Scenarios all build pieces of a small menu management system. Sessions
+> can be read independently, but later sessions sometimes refer to
+> earlier ones by name.
 
-These are not scripts. They are representative of how a session unfolds
-when the rules in this repo are honored. Treat them as a calibration
-target for what Claude should sound like at each mode.
+## Format
 
----
+Each turn is labeled **You:** (the developer) or **Claude:**. Section
+headers Claude used mid-response have been demoted to bold lines so they
+don't collide with the document's heading structure; everything else is
+preserved as-sent.
 
-## How to Read These
-
-Each session below is a transcript: the developer's input (`You:`) and
-Claude's response (`Claude:`), turn by turn.
-
-**Identical across all three modes:**
-- The Three Laws (match the mode, announce scope, tests first).
-- The same Go skills under `.claude/skills/go-*` are consulted.
-- The same guardrails apply (5-file cap, conventional commits, hooks).
-- The pre-commit self-check runs before code is handed back.
-
-**Different across modes:**
-- **Pacing** — how often Claude checks in mid-task.
-- **Idiom narration** — how much Go is explained inline.
-- **Scope per task** — small phases vs. one reviewable sitting vs.
-  multi-phase plan.
-- **Where the conversation opens** — teaching vs. plan vs. design.
+Each session opens with a short header listing scope, the Go skills
+Claude consulted, and the outcome (so a reader can tell at a glance
+whether the session got to "green" or ended earlier).
 
 ---
 
-## Session 1 — `beginner`
+## Beginner
 
-**Scenario:** Add an email-validation function to the existing
-`internal/user` package. The developer is new to Go.
+### Session 1 — `/pair`: `MenuItem` constructor in a new package
 
-```
-You:     /pair Add email validation to the user package.
+**Scenario:** Brand-new `internal/menu` package. Add a `MenuItem` struct
+and a `NewMenuItem` constructor that validates inputs and returns errors.
 
-Claude:  Mode: beginner. Before we open any file, two design choices
-         worth making up front:
+**Scope discussed:** `internal/menu/{money,money_test,item,item_test}.go`
+— 4 files, phased 2 + 2.
 
-         1. Regex vs. net/mail.ParseAddress.
-            Regex looks tempting, but RFC 5322 is famously gnarly —
-            our team uses net/mail.ParseAddress from stdlib because
-            it follows the actual spec. Less surface area for bugs.
+**Skills referenced:** `go-error-handling`, `go-testing`, `go-project-structure`.
 
-         2. What should the function return on failure?
-            Two options: a bool, or an error. Errors are richer —
-            callers can wrap them and log them with context. Our
-            go-error-handling/SKILL.md prefers errors for anything
-            that can fail in more than one way.
-
-         Sound good with net/mail + error return?
-
-You:     Yeah that works.
-
-Claude:  Good. Scope I'm proposing (2 files, well under the 5-file cap):
-
-         - internal/user/validation.go         (new — ValidateEmail)
-         - internal/user/validation_test.go    (new — its tests)
-
-         We'll run /tdd here. First a failing test, then the smallest
-         code that makes it pass. Ready?
-
-You:     Go.
-
-Claude:  Here's our first test case. I'm using a table-driven test
-         because that's the team standard (go-testing/SKILL.md) — even
-         with one case today, the structure is ready for more tomorrow.
-
-         // internal/user/validation_test.go
-         package user
-
-         import "testing"
-
-         func TestValidateEmail(t *testing.T) {
-             tests := []struct {
-                 name    string
-                 email   string
-                 wantErr bool
-             }{
-                 {
-                     name:    "valid simple address",
-                     email:   "alice@example.com",
-                     wantErr: false,
-                 },
-             }
-
-             for _, tc := range tests {
-                 t.Run(tc.name, func(t *testing.T) {
-                     err := ValidateEmail(tc.email)
-                     if (err != nil) != tc.wantErr {
-                         t.Errorf("ValidateEmail(%q) error = %v, wantErr %v",
-                             tc.email, err, tc.wantErr)
-                     }
-                 })
-             }
-         }
-
-         Running: go test -v -run TestValidateEmail ./internal/user/...
-         ❌ FAIL — undefined: ValidateEmail.
-
-         That's RED. What's the smallest code that makes this pass?
-         Hint: it doesn't need to actually validate anything yet.
-
-You:     A function that just returns nil?
-
-Claude:  Exactly. The simplest possible thing:
-
-         // internal/user/validation.go
-         package user
-
-         // ValidateEmail returns nil if email is a valid RFC 5322
-         // address, or a non-nil error describing why it isn't.
-         func ValidateEmail(email string) error {
-             return nil
-         }
-
-         go test -v -run TestValidateEmail ./internal/user/...
-         ✅ PASS
-
-         GREEN. Now we add a failing case to force a real implementation.
-
-         Add this to the tests slice:
-
-         {
-             name:    "missing @ sign",
-             email:   "alice.example.com",
-             wantErr: true,
-         },
-
-         Re-run. ❌ FAIL — our function returns nil for an invalid email.
-         Back to RED. Now we implement for real:
-
-         import (
-             "errors"
-             "fmt"
-             "net/mail"
-         )
-
-         var ErrInvalidEmail = errors.New("invalid email")
-
-         func ValidateEmail(email string) error {
-             if _, err := mail.ParseAddress(email); err != nil {
-                 return fmt.Errorf("%w: %v", ErrInvalidEmail, err)
-             }
-             return nil
-         }
-
-         Two Go idioms worth pausing on, because you'll see them
-         everywhere in this codebase:
-
-         - `var ErrInvalidEmail = errors.New(...)` is a *sentinel
-           error*. Callers can check `errors.Is(err, ErrInvalidEmail)`
-           without pattern-matching the message string. That's the
-           pattern from go-error-handling/SKILL.md.
-
-         - `fmt.Errorf("%w: %v", ...)` — the `%w` verb wraps the
-           original error so it stays in the chain. `%v` is plain
-           formatting. Wrapping with `%w` is what makes `errors.Is`
-           work across boundaries.
-
-         ✅ Both cases pass. Let's add one more — an empty string —
-         to make sure we handle the zero value:
-
-         {name: "empty string", email: "", wantErr: true},
-
-         ✅ PASS. Pre-commit self-check before I hand this back:
-
-         - [x] Scope announced (2 files, matches what we agreed)
-         - [x] New function has a test
-         - [x] Errors handled with sentinel + wrap pattern
-         - [x] Exported identifiers have doc comments
-         - [x] go vet clean, golangci-lint clean
-         - [x] You can explain what the code does
-
-         Quick check on that last one — what does `errors.Is(err,
-         ErrInvalidEmail)` return for the "missing @ sign" case,
-         and why?
-
-You:     True, because of the %w wrap?
-
-Claude:  Exactly right. The %w keeps ErrInvalidEmail in the chain,
-         and errors.Is walks the chain looking for a match. Ship it
-         when you're ready — suggested commit message:
-
-         feat(user): add ValidateEmail with sentinel-error reporting
-```
+**Outcome:** Session ended mid-Red after writing the first failing test
+for `NewMoney`. Design decisions locked: `BasePrice` is a `Money` type
+(int64 cents underneath, decimal display via `String()`),
+`NewMoney(dollars, cents int) (Money, error)` rejects negatives and
+`cents > 99`, one-sentinel error style for validation failures.
+Implementation deferred to the next sitting.
 
 ---
 
-## Session 2 — `senior`
-
-**Scenario:** Add retry-with-backoff to an outbound webhook client.
-The developer ships features end-to-end.
+**You:**
 
 ```
-You:     Add retry-with-backoff to the webhook client.
-
-Claude:  Plan:
-         - Up to 5 attempts. Exponential backoff: 100ms base, ×2 each.
-           Full jitter on every sleep, ctx-aware.
-         - Retry on 5xx responses and net.Error timeouts.
-         - 4xx fails fast (non-retryable).
-         - Wrap the exhausted-retries error with the last underlying
-           error so callers can errors.Is/As against it.
-         - 3 files: internal/webhook/retry.go (new), retry_test.go
-           (new), client.go (call sites).
-
-         Push back if you want jittered-equal instead of full jitter,
-         or different retry-eligibility rules.
-
-You:     Looks good. Go.
-
-Claude:  Failing test first.
-
-         // internal/webhook/retry_test.go
-         func TestDoWithRetry(t *testing.T) {
-             tests := []struct {
-                 name      string
-                 statuses  []int // status returned on each attempt
-                 wantCalls int
-                 wantErrIs error
-             }{
-                 {
-                     name:      "succeeds on first try",
-                     statuses:  []int{200},
-                     wantCalls: 1,
-                 },
-                 {
-                     name:      "retries 5xx then succeeds",
-                     statuses:  []int{503, 503, 200},
-                     wantCalls: 3,
-                 },
-                 {
-                     name:      "fails fast on 4xx",
-                     statuses:  []int{404},
-                     wantCalls: 1,
-                     wantErrIs: ErrNonRetryable,
-                 },
-                 {
-                     name:      "exhausts retries",
-                     statuses:  []int{500, 500, 500, 500, 500},
-                     wantCalls: 5,
-                     wantErrIs: ErrRetriesExhausted,
-                 },
-             }
-             // ... t.Run loop with a stub RoundTripper that returns
-             //     the canned statuses in order ...
-         }
-
-         go test -race ./internal/webhook/...
-         ❌ FAIL — undefined: DoWithRetry, ErrNonRetryable,
-         ErrRetriesExhausted.
-
-         Implementation:
-
-         var (
-             ErrNonRetryable     = errors.New("non-retryable response")
-             ErrRetriesExhausted = errors.New("retries exhausted")
-         )
-
-         const (
-             maxAttempts = 5
-             baseDelay   = 100 * time.Millisecond
-         )
-
-         func DoWithRetry(
-             ctx context.Context,
-             do func(context.Context) (*http.Response, error),
-         ) (*http.Response, error) {
-             var lastErr error
-             for attempt := 0; attempt < maxAttempts; attempt++ {
-                 resp, err := do(ctx)
-                 switch {
-                 case err == nil && resp.StatusCode < 500:
-                     if resp.StatusCode >= 400 {
-                         return resp, fmt.Errorf("%w: %d",
-                             ErrNonRetryable, resp.StatusCode)
-                     }
-                     return resp, nil
-                 case err == nil:
-                     lastErr = fmt.Errorf("status %d", resp.StatusCode)
-                     resp.Body.Close()
-                 default:
-                     lastErr = err
-                 }
-                 if attempt == maxAttempts-1 {
-                     break
-                 }
-                 if err := sleepWithJitter(ctx, attempt); err != nil {
-                     return nil, err
-                 }
-             }
-             return nil, fmt.Errorf("%w: %v", ErrRetriesExhausted, lastErr)
-         }
-
-         func sleepWithJitter(ctx context.Context, attempt int) error {
-             max := baseDelay * (1 << attempt)
-             d := time.Duration(rand.Int63n(int64(max)))
-             t := time.NewTimer(d)
-             defer t.Stop()
-             select {
-             case <-ctx.Done():
-                 return ctx.Err()
-             case <-t.C:
-                 return nil
-             }
-         }
-
-         ✅ All four cases pass, -race clean.
-
-         One non-obvious choice worth flagging: full jitter (random
-         0..backoff) rather than equal jitter (backoff/2 + random
-         0..backoff/2). At our outbound volume the difference is
-         imperceptible, but full jitter is strictly better for
-         thundering-herd behavior the moment this runs in more than
-         one pod. No downside today, future-proof.
-
-         client.go wired up. make check passes.
-
-         /review on the diff —
-
-         🟡 Should fix: when ctx is cancelled mid-sleep, we return
-            ctx.Err() raw. Callers using errors.Is(err,
-            ErrRetriesExhausted) won't catch that path. That's
-            probably intentional (cancellation is its own concept)
-            but worth a doc note on DoWithRetry so the boundary is
-            explicit.
-         🟢 Nice: jitter math is correct and ctx-aware.
-
-         Want me to add the doc note?
-
-You:     Yes.
-
-Claude:  Done. DoWithRetry's doc comment now reads:
-
-         // DoWithRetry calls do with exponential-backoff retries on
-         // 5xx and transport errors, up to maxAttempts. Returns
-         // ErrNonRetryable for 4xx responses and ErrRetriesExhausted
-         // after the final failure. If ctx is cancelled during a
-         // backoff sleep, the cancellation error is returned directly
-         // (it does not wrap ErrRetriesExhausted).
-
-         Pre-commit self-check:
-         - [x] Scope held to 3 files as announced
-         - [x] go vet, golangci-lint, go test -race all clean
-         - [x] Every error wrapped or returned; no `_ =` on errors
-         - [x] Reviewable in one sitting
-
-         Suggested commit:
-
-         feat(webhook): add ctx-aware retry with full-jitter backoff
+/pair Add a MenuItem struct and a NewMenuItem constructor to a new internal/menu package. Validate inputs and return errors.
 ```
+
+**Claude:**
+
+Mode: **beginner**. We're pairing on a new `internal/menu` package — `MenuItem` struct and a `NewMenuItem` constructor that validates and returns errors.
+
+Before I propose anything concrete, two checks — one on your mental model, one teachable moment that shapes the whole struct.
+
+**What fields does a `MenuItem` need?**
+
+My starting picture is four:
+
+- `Name` (string)
+- `Description` (string)
+- `Price` (money type — see below)
+- `ID` (string — for when we add a repository later)
+
+Anything you want to add or drop? Common candidates we *could* defer: `Category`, `Available bool`, `CreatedAt`. I'd leave them out today and add when we need them.
+
+**The one design choice worth surfacing now: how do we represent price?**
+
+Three common options. This matters more than it looks.
+
+1. **`float64`** (e.g., `12.99`) — Looks natural. **Don't.** Floats can't represent `0.10` exactly in binary, so `0.10 + 0.20` in Go gives `0.30000000000000004`. Fine for graphics, fatal for money.
+
+2. **`int` cents** (e.g., `1299` means $12.99) — Integer math is exact, stdlib only, easy to reason about. Drawback: you have to remember "cents" everywhere, and currencies with different minor units (JPY 0, KWD 3) eventually need a wrapper.
+
+3. **`decimal.Decimal`** (third-party, e.g., `shopspring/decimal`) — Most correct. Pulls in a dependency, which per CLAUDE.md we'd have to flag and justify.
+
+My recommendation: **int cents**. Exact, stdlib-only, smallest thing that works. We can revisit when we need multi-currency.
+
+**Two questions I'm parking until you respond**
+
+- **Validation rules** — what makes an input invalid? (empty name? negative or zero price? name length cap?)
+- **Error style** — one sentinel `ErrInvalidMenuItem` that we wrap with field context, or a separate sentinel per field (`ErrEmptyName`, `ErrInvalidPrice`)?
+
+Once we settle fields + price representation, I'll propose the file scope and we write the first failing test together.
+
+**Your call on:** field list, price representation. Push back on anything.
 
 ---
 
-## Session 3 — `staff`
+**You:**
 
-**Scenario:** Add OpenTelemetry tracing across the HTTP layer. This is a
-multi-quarter initiative, not a single change.
+Can we make price as base price since it can be overriden at a particular store? Otherwise this is a good starting point.
 
+**Claude:**
+
+Good call — `BasePrice` encodes a real domain fact (price is overridable downstream) into the type, which is cheaper than renaming later. Tiny refinement on top of that:
+
+**Field name should make the unit explicit.** In Go, when a numeric field's unit isn't obvious from context, the convention is to suffix it: `time.Sleep(5)` is ambiguous, `time.Sleep(5 * time.Millisecond)` is not. Same principle here — `BasePrice int` could be dollars, cents, or millicents. Two options:
+
+- **`BasePriceCents int`** — unit is in the name, can't be misread at the call site.
+- **`BasePrice Money`** where `Money` is a thin `type Money int` wrapper — slightly more ceremony, but typesafe (you can't accidentally pass a count to a price).
+
+For where we are today I'd go with `BasePriceCents int`. The `Money` wrapper is the right call when we have more than one money-like field; with one, it's overkill.
+
+**Locked-in field list**
+
+```go
+type MenuItem struct {
+    ID              string
+    Name            string
+    Description     string
+    BasePriceCents  int
+}
 ```
-You:     We need to add OpenTelemetry tracing across the API.
 
-Claude:  Before any code — this is an observability initiative spanning
-         multiple phases. The decisions to pin down first, because each
-         one constrains everything that follows:
+OK to lock this in, or push back?
 
-         1. Sampling strategy.
-            Head sampling (decide at request entry) is cheap and what
-            most teams ship first. Tail sampling (decide after the
-            trace is observed) gives much better signal-to-cost
-            ratio — you keep 100% of errors and 1% of successes —
-            but needs a stateful collector and more infra cost. My
-            recommendation: head-sample at 1% globally, with a
-            forced-keep on any span that records an error. Migrate
-            to tail later if we outgrow it. That decision is
-            reversible at the collector layer.
+**Back to the parked questions**
 
-         2. Vendor neutrality.
-            Lock-in matters. We depend on the OTel SDK API only and
-            route through an exporter interface we own. "Switch
-            from Tempo to Honeycomb to Datadog" becomes a config
-            change, not a code rewrite. We don't have a local
-            command for spec authoring, so this is the right
-            lifecycle gap for agent-skills:spec — we want this
-            interface contract in writing before we build against it.
+I need your read on these two before I propose scope and we write the first test:
 
-         3. Propagation.
-            W3C traceparent on every outbound HTTP, extract on every
-            inbound. Risk: any handler that forgets to propagate
-            becomes a trace black hole. Mitigation: wrap http.Client
-            at the composition root so propagation is the default,
-            not opt-in per call site.
+**1. Validation rules — what counts as invalid input?**
 
-         4. Failure mode: collector down.
-            Tracing MUST fail open. We never block a request on an
-            observability concern. SDK defaults are fine here, but I
-            want this written into the spec so it can't drift.
+My suggested defaults (push back on any):
 
-         5. Rollout.
-            Per-route feature flag, env-driven. Roll out to /health
-            first (cheapest span possible), then one real endpoint
-            at 1% sampling, watch collector cost for a week, then
-            expand. Rollback is "set env var to false." The
-            middleware checks at request time, not init time, so
-            the flag is hot-swappable.
+- `ID` — non-empty, trimmed.
+- `Name` — non-empty after trim, max 200 chars.
+- `Description` — allowed empty (some items have no description), max 2000 chars.
+- `BasePriceCents` — must be `> 0`. (Zero-priced items — promotional freebies — are a real thing, but they're better modeled as a promotion than a base price. We can revisit.)
 
-         6. Where to instrument.
-            HTTP mux middleware: yes. Outbound HTTP: yes. DB layer:
-            yes but one span per transaction, not per query — span
-            explosion is the most common foot-gun. Internal function
-            calls: no.
+**2. Error style — one sentinel, or one per field?**
 
-         I need answers on 1, 2, and 4 before drafting anything.
-         The rest follow from those three.
+- **One sentinel** — `var ErrInvalidMenuItem = errors.New("invalid menu item")`. Callers do `errors.Is(err, ErrInvalidMenuItem)`. Inside the error we wrap with field context: `"empty name"`, `"price must be positive"`. Simpler.
+- **One per field** — `ErrEmptyName`, `ErrEmptyID`, `ErrInvalidPrice`, etc. Callers can branch on the specific failure. More ceremony, useful when callers actually do branch (e.g., a form UI highlighting a specific input).
 
-You:     1: head sample 1% with error keep, agreed.
-         2: vendor-neutral interface. Run agent-skills:spec for it.
-         4: fail open, agreed.
+My recommendation: **one sentinel**, wrapped with field context. The caller this constructor will have today is internal code that just rejects bad input — it doesn't need to branch on which field failed. We can split later if a UI ever needs it. This matches `go-error-handling/SKILL.md`'s "smallest API surface that works" guidance.
 
-Claude:  Phase plan via /scope:
-
-         📋 Initiative: OpenTelemetry tracing
-         Total phases: 5
-
-         Phase 1 — SDK init + exporter interface
-           internal/observability/tracing.go (new)
-           internal/observability/tracing_test.go (new)
-           cmd/api/main.go (wire the init at composition root)
-           Deliverable: tracer provider set up at startup; no-op
-           exporter in tests; OTLP exporter in prod; fail-open if
-           collector unreachable.
-
-         Phase 2 — HTTP mux middleware
-           internal/middleware/tracing.go (new)
-           internal/middleware/tracing_test.go (new)
-           cmd/api/routes.go (wrap mux)
-           Deliverable: every inbound request produces a root span;
-           name follows "{method} {route_pattern}"; error responses
-           promote to span error status.
-
-         Phase 3 — Outbound http.Client instrumentation
-           internal/http/client.go (modify)
-           internal/http/client_test.go (modify)
-           Deliverable: trace context injected via traceparent;
-           outbound spans nest under inbound spans.
-
-         Phase 4 — DB transaction spans
-           internal/db/tracing.go (new)
-           internal/db/tracing_test.go (new)
-           Deliverable: one span per transaction; query attributes
-           recorded with parameter values redacted.
-
-         Phase 5 — Sampling tuning + alerting
-           Configuration only — alerts on collector lag and span
-           drop rate.
-
-         Rollback plan, every phase: OTEL_TRACING_ENABLED=false.
-         Each phase ships independently, dark-launched behind the
-         flag, then enabled. Phase N never blocks on phase N+1.
-
-         Before /tdd on Phase 1, the right next move is the spec.
-         I'll route to agent-skills:spec — local commands cover
-         building and testing well, but spec authoring is the
-         lifecycle gap the agent-skills partition is designed for.
-
-         The spec will cover, at minimum:
-           - The exporter interface and its contract (Shutdown,
-             ForceFlush, ExportSpans semantics).
-           - The init function's signature and failure mode
-             (fail-open: log + continue with a no-op tracer).
-           - The env-config surface (OTEL_TRACING_ENABLED,
-             OTEL_EXPORTER_OTLP_ENDPOINT, OTEL_SERVICE_NAME).
-           - The contract our future Tempo/Honeycomb/Datadog
-             adapters must satisfy.
-
-         Ready for me to route to agent-skills:spec for that draft?
-
-You:     Yes.
-
-Claude:  Handing off to agent-skills:spec. I'll bring the spec back
-         here for your review before any code is written. Once it's
-         approved, the next step is /tdd on the exporter interface
-         in tracing_test.go. The interface comes first; the OTel
-         SDK plumbing comes second. That ordering is what protects
-         vendor neutrality — if we plumb SDK types into the rest of
-         the codebase, the interface becomes ornamental.
-```
+Your call on validation rules and error style. Once you sign off, I'll propose the 2-file scope and we write the first failing test.
 
 ---
 
-## What's the Same vs. What Changes
+**You:**
 
-Reading the three sessions side by side:
+I dont want cents. Lets do Money. Can money also represent decimal value?
+
+**Claude:**
+
+Honest answer: **Go has no built-in decimal type, and a `Money` wrapper is *still an integer underneath*.** The wrapper gives you type-safety (you can't accidentally add a `Money` to a `Quantity`), it doesn't give you fractional storage. Worth disentangling two things you might mean by "decimal":
+
+- **Decimal *display*** — showing `"$12.99"` instead of `1299`. This is just a `String()` method on the type. Easy in any of the options below.
+- **Decimal *storage*** — actually holding `0.001` or `12.9999`. That needs more than an `int` underneath.
+
+So when people say "use a `Money` type" there are three flavors, depending on the precision you actually need:
+
+1. **`type Money int64`, units = cents.** Stores `1299`, prints as `"$12.99"`. Two decimal places max. Fine for most retail menus.
+
+2. **`type Money int64`, units = micros** (1/10000 of a currency unit). Stores `12990000` for $12.99, also stores `1000` for $0.001. Four decimal places max. Used in per-gram pricing, FX, ad-tech.
+
+3. **`decimal.Decimal`** (third-party, `shopspring/decimal`). Arbitrary precision. Real decimal. Costs a dependency — CLAUDE.md says I have to flag any new dep with its maintenance cost.
+
+For a menu, what does the business actually need?
+- Whole-cent prices only (`$12.99`, never `$12.991`) → option 1.
+- Sub-cent pricing (per-gram, per-ounce, currency conversion mid-flight) → option 2.
+- True arbitrary precision (rare for menus) → option 3.
+
+**My recommendation: option 1**
+
+`type Money int64` representing cents, with a `String()` method for decimal display. You get the typesafe `BasePrice Money` field you asked for, decimal *display* via method, decimal *storage* you don't actually need, and zero external dependencies.
+
+Sketch:
+
+```go
+// internal/menu/money.go
+package menu
+
+import "fmt"
+
+// Money represents an amount of currency in cents.
+// Use NewMoney to construct from dollars; arithmetic stays in cents.
+type Money int64
+
+// String formats as "$12.99". Negative values are bracketed: "-$1.50".
+func (m Money) String() string {
+    if m < 0 {
+        return fmt.Sprintf("-$%d.%02d", -m/100, -m%100)
+    }
+    return fmt.Sprintf("$%d.%02d", m/100, m%100)
+}
+```
+
+Now the struct reads:
+
+```go
+type MenuItem struct {
+    ID          string
+    Name        string
+    Description string
+    BasePrice   Money
+}
+```
+
+`item.BasePrice.String()` gives `"$12.99"` for display. Arithmetic (`a + b`) stays exact because it's just `int64` addition under the hood.
+
+**Two follow-ups before we move to scope**
+
+1. **Lock in option 1**, or do you actually have a sub-cent pricing case in mind? (If unsure, option 1 — migrating to micros later is mechanical.)
+2. **Do you want a constructor `NewMoney(dollars int, cents int) (Money, error)`** to make construction safe at call sites, or are we OK with `Money(1299)` directly? Constructor is nicer for readers (`NewMoney(12, 99)` is self-documenting); direct cast is less ceremony.
+
+Your call. Once these are settled I'll propose the file scope and we write the first failing test.
+
+---
+
+**You:**
+
+Lets go with 2.
+
+**Claude:**
+
+Quick clarification — your "2" is ambiguous and I don't want to guess wrong. I just gave you two enumerated lists:
+
+- **Money type options 1/2/3** (cents / micros / decimal.Decimal)
+- **Follow-up questions 1/2** (lock in option 1? / want a `NewMoney` constructor?)
+
+Two possible reads:
+
+- **Money option 2 = micros.** You'd be saying: "I want sub-cent precision because the question about decimals had a real use case behind it." Plausible — your earlier question about decimal representation hinted at this.
+- **Follow-up question 2 = yes, want `NewMoney` constructor.** Plausible because it's the most recent prompt.
+
+Which did you mean? Two sentences and we move on.
+
+---
+
+**You:**
+
+Yes I want NewMoney constructor
+
+**Claude:**
+
+Settled then:
+- `Money` = option 1 (`int64` cents under the hood, decimal display via `String()`)
+- `NewMoney(dollars, cents int) (Money, error)` constructor
+
+One micro-design call I want to flag before we write a test, so we don't bake in the wrong rule:
+
+**Should `NewMoney` accept negative values?** Two readings:
+- *Money as a general type* — refunds and discounts are negative money, so yes, allow it.
+- *Money as built by `NewMoney`* — this constructor is for entering *positive* amounts; negatives come out of *arithmetic* (e.g., `discount := base - applied`), not construction.
+
+My recommendation: **`NewMoney` rejects negative dollars or negative cents**. Arithmetic on `Money` can still produce negatives naturally. Document it: "Use `NewMoney` for amount entry; subtract `Money` values to produce negatives." Cleaner contract, can revisit if a real refund-entry case appears.
+
+Also: `cents` must be 0–99. `NewMoney(0, 105)` is a caller bug.
+
+Sound right? If yes, locking in.
+
+**Scope (4 files, two natural phases — well under the 5-file cap)**
+
+**Phase 1 — this sitting:**
+- `internal/menu/money.go` (new) — `Money` type, `String()`, `NewMoney()`
+- `internal/menu/money_test.go` (new) — tests for `NewMoney` and `String`
+
+**Phase 2 — same sitting if you've got energy, otherwise next:**
+- `internal/menu/item.go` (new) — `MenuItem`, `NewMenuItem()`
+- `internal/menu/item_test.go` (new) — tests for `NewMenuItem`
+
+Phasing reason: `MenuItem` will depend on `Money`, so building `Money` first means Phase 2's tests can use real `Money` values, not stubs.
+
+**First failing test**
+
+Per beginner `/tdd` flow: one failing case, smallest possible. Table-driven from the start so we have a place to add cases (`go-testing/SKILL.md`).
+
+```go
+// internal/menu/money_test.go
+package menu
+
+import "testing"
+
+func TestNewMoney(t *testing.T) {
+    tests := []struct {
+        name    string
+        dollars int
+        cents   int
+        want    Money
+        wantErr bool
+    }{
+        {
+            name:    "simple positive amount",
+            dollars: 12,
+            cents:   99,
+            want:    Money(1299),
+            wantErr: false,
+        },
+    }
+
+    for _, tc := range tests {
+        t.Run(tc.name, func(t *testing.T) {
+            got, err := NewMoney(tc.dollars, tc.cents)
+            if (err != nil) != tc.wantErr {
+                t.Errorf("NewMoney(%d, %d) error = %v, wantErr %v",
+                    tc.dollars, tc.cents, err, tc.wantErr)
+            }
+            if got != tc.want {
+                t.Errorf("NewMoney(%d, %d) = %v, want %v",
+                    tc.dollars, tc.cents, got, tc.want)
+            }
+        })
+    }
+}
+```
+
+Running it:
+
+```
+[Bash: go test -v ./internal/menu/...]
+./money_test.go:18:18: undefined: Money
+./money_test.go:24:25: undefined: NewMoney
+FAIL    internal/menu [build failed]
+```
+
+That's **RED** — won't even compile because `Money` and `NewMoney` don't exist yet.
+
+**Your turn.** What's the smallest code in a new `internal/menu/money.go` that makes this test compile and pass?
+
+Hint: it doesn't need to validate anything yet. Think about the simplest possible type definition and the simplest possible function that returns the expected value for this single test case.
+
+Take a swing — I'll catch anything off, and we'll add a forcing test case next.
+
+---
+
+**You:**
+
+Lets conclude session 1 here.
+
+**Claude:**
+
+[Session captured to `example.md`. Implementation of `NewMoney` deferred — design + first failing test locked in, the smallest-thing-that-passes step belongs to the next sitting.]
+
+---
+
+## What this session shows (beginner mode)
+
+- **Teach-first pacing.** The price-representation digression took several turns because the choice shapes every line that follows. Senior mode would have made that call in one line.
+- **Inline idiom explanation.** Floats-for-money, unit-in-the-name (`time.Sleep` analogy), `%w` wrapping, sentinel errors, table-driven tests — each introduced where it first appeared, with the *why*, not just the *what*.
+- **Active confusion management.** When the user's "Lets go with 2" was ambiguous between two enumerated lists, Claude stopped and asked instead of guessing. This is the [`using-agent-skills`](/) operating behavior in practice.
+- **Driver/navigator split.** Claude proposed designs but pushed the implementation step (smallest code that makes the test pass) back to the developer. They own the keyboard; Claude owns the catch-net.
+- **Natural pause point.** The session ended cleanly mid-Red. The TDD cycle survives across sittings because the next move (smallest passing code) is concrete and obvious from the failing test alone.
+
+---
+
+### Session 2 — `/tdd`: `ParseMoney` as a strict inverse of `Money.String()`
+
+**Scenario:** Same `internal/menu` package as Session 1. Implement
+`ParseMoney(s string) (Money, error)` driven strictly by Red → Green → Refactor.
+
+**Scope discussed:** `internal/menu/money.go` (modify),
+`internal/menu/money_test.go` (append `TestParseMoney`).
+
+**Skills referenced:** `go-testing`, `go-error-handling`.
+
+**Outcome:** Two full Red → Green cycles captured. First cycle used
+fake-it-til-you-make-it to prove the test exercised the function; second
+cycle replaced the fake-it with a minimal real parser passing two
+positive-input cases. Session ended at the second GREEN, with a forcing-case
+table listed for future cycles (negative path, error wrapping for malformed
+input, prefix/decimal validation).
+
+---
+
+**You:**
+
+```
+/tdd Implement ParseMoney(s string) (Money, error) in the internal/menu package. It parses currency strings like "$12.99" back into a Money value, inverse of Money.String().
+```
+
+**Claude:**
+
+Mode: **beginner**. Strict TDD cycle: Red → Green → Refactor, one case at a time.
+
+Quick contract confirmation since you said "inverse of `Money.String()`" in the task:
+
+- **Accept** exactly what `String()` produces: `"$12.99"`, `"$0.00"`, `"-$1.50"`.
+- **Reject** everything else: `"12.99"` (no `$`), `"$12"` (no cents), `"$12.9"` (one decimal), `"$12.999"` (three decimals), `""`, whitespace-padded, garbage like `"$twelve"`.
+
+That gives us a clean round-trip property we can test later: `m == ParseMoney(m.String())` for any `Money m`. Drawing the line at "strict inverse" also keeps the rules finite — lenient parsing tends to grow forever (unicode minus? thousand separators? trailing zeros?).
+
+Push back if you want lenient, otherwise we lock strict.
+
+Assuming strict — **first question of the RED phase**:
+
+> **What's the simplest behavior we should test first?**
+
+Don't reach for edge cases yet. Pick one obviously-valid happy-path input. Once we have a baseline green, we'll add forcing cases one at a time to drive out the real implementation.
+
+What case would you start with?
+
+---
+
+**You:**
+
+Lets start with Accept case
+
+**Claude:**
+
+Good. Canonical happy-path case: `"$12.99"` → `Money(1299)`, no error.
+
+Here's the test. Same table-driven pattern as Session 1 — one row today, with the structure ready for the forcing cases we'll add next:
+
+```go
+// internal/menu/money_test.go  (appended; TestNewMoney already exists from Session 1)
+func TestParseMoney(t *testing.T) {
+    tests := []struct {
+        name    string
+        input   string
+        want    Money
+        wantErr bool
+    }{
+        {
+            name:    "simple positive dollars and cents",
+            input:   "$12.99",
+            want:    Money(1299),
+            wantErr: false,
+        },
+    }
+
+    for _, tc := range tests {
+        t.Run(tc.name, func(t *testing.T) {
+            got, err := ParseMoney(tc.input)
+            if (err != nil) != tc.wantErr {
+                t.Errorf("ParseMoney(%q) error = %v, wantErr %v",
+                    tc.input, err, tc.wantErr)
+            }
+            if got != tc.want {
+                t.Errorf("ParseMoney(%q) = %v, want %v",
+                    tc.input, got, tc.want)
+            }
+        })
+    }
+}
+```
+
+Running it:
+
+```
+[Bash: go test -v -run TestParseMoney ./internal/menu/...]
+./money_test.go:42:25: undefined: ParseMoney
+FAIL    internal/menu [build failed]
+```
+
+**RED.** Won't even compile — `ParseMoney` doesn't exist. That's the strongest kind of red: no implementation, no test, no risk of a false-positive pass.
+
+**GREEN — your turn.** What's the smallest code in `internal/menu/money.go` that makes this test compile and pass?
+
+Hint: it doesn't need to parse anything. It doesn't need to validate anything. It doesn't need to handle any input other than the one we're testing. Think about the cheapest possible function body that returns the right `(Money, error)` pair for this single case.
+
+(Yes, it'll be silly. That's the point — we're going to break it on purpose with the next test case, which is what forces real implementation. This is "fake it 'til you make it" — a real TDD technique, not a shortcut.)
+
+Take a swing.
+
+---
+
+**You:**
+
+ok done.
+
+**Claude:**
+
+Got it. Smallest passing implementation looks like:
+
+```go
+// internal/menu/money.go (appended)
+func ParseMoney(s string) (Money, error) {
+    return Money(1299), nil
+}
+```
+
+```
+[Bash: go test -v -run TestParseMoney ./internal/menu/...]
+=== RUN   TestParseMoney/simple_positive_dollars_and_cents
+--- PASS: TestParseMoney/simple_positive_dollars_and_cents
+PASS
+```
+
+**GREEN.** Embarrassingly fake — it returns `Money(1299)` for *any* input, including `""` or `"hello"`. That's exactly the point. The next test case is what forces real parsing.
+
+This pattern has a name: **fake-it-til-you-make-it**. It's a deliberate TDD technique, not a shortcut. By starting with a hardcoded return, you prove your test actually exercises the function. Then each new failing case ratchets the implementation toward correctness one step at a time. The alternative — writing the full parser before any test passes — is how bugs hide inside un-test-exercised branches.
+
+**RED — next case.** The teaching here: pick a forcing input that's *different enough* from `$12.99` that the fake-it can't handle both. Three reasonable candidates:
+
+- `"$0.00"` → `Money(0)` — different number, same shape. Forces actual parsing of digits. **Smallest jump.**
+- `"$1.50"` → `Money(150)` — single-digit dollars, non-`.99` cents. Forces digit-by-digit.
+- `"-$1.50"` → `Money(-150)` — negative path. Bigger jump (sign handling).
+
+The disciplined TDD move is the smallest jump: `"$0.00"`. Add it, watch it RED, write a real parser, watch both go GREEN. Then add `"-$1.50"` next.
+
+If you want to keep cycling, I'll write the next RED. **Or this is a natural place to conclude Session 2** — we've captured a full Red → Green cycle with the fake-it pattern explained inline, and remaining cycles are mechanical (each one mirrors the one above: forcing case, fail, implement, pass).
+
+Your call: continue, or wrap Session 2 here?
+
+---
+
+**You:**
+
+Lets do $1.50
+
+**Claude:**
+
+OK — slightly bigger jump than the disciplined-minimum `$0.00`, but it still keeps us in positive-only territory and forces real parsing. Fine.
+
+Adding the case to the existing table:
+
+```go
+// internal/menu/money_test.go  (TestParseMoney's tests slice, after the first case)
+{
+    name:    "single-digit dollars and partial cents",
+    input:   "$1.50",
+    want:    Money(150),
+    wantErr: false,
+},
+```
+
+Running:
+
+```
+[Bash: go test -v -run TestParseMoney ./internal/menu/...]
+=== RUN   TestParseMoney
+=== RUN   TestParseMoney/simple_positive_dollars_and_cents
+--- PASS: TestParseMoney/simple_positive_dollars_and_cents
+=== RUN   TestParseMoney/single-digit_dollars_and_partial_cents
+    money_test.go:60: ParseMoney("$1.50") = $12.99, want $1.50
+--- FAIL: TestParseMoney/single-digit_dollars_and_partial_cents
+FAIL
+```
+
+**RED.** First case still passes (lucky — fake-it happened to match it). New case fails: our function returns `Money(1299)` for *every* input, including `"$1.50"`. The fake-it is officially broken; we need real parsing.
+
+(Side note: the error message reads `$12.99` and `$1.50` — that's `%v` calling `Money.String()` from Session 1. Self-documenting test output for free.)
+
+**GREEN — your turn.** Time for a real implementation.
+
+Think about the steps. What does the parser need to do, in order? I'll list them in the abstract — you map them to Go:
+
+1. Strip the leading `$`.
+2. Split the remaining string into two parts: dollars and cents, around the `.`.
+3. Convert each part from string to int.
+4. Combine: `dollars * 100 + cents`.
+
+Stdlib has every piece you need:
+
+- `strings.TrimPrefix(s, "$")` — removes a known prefix, returns the rest. (Returns `s` unchanged if the prefix isn't there — important later.)
+- `strings.Cut(s, ".")` — Go 1.18+. Splits `"1.50"` into `("1", "50", true)`. The `bool` tells you whether the separator was found.
+- `strconv.Atoi(s)` — parses an `int` from a decimal string, returns `(int, error)`.
+
+For now: don't worry about *invalid* input. Don't worry about negatives. Don't worry about the round-trip property. Just get `"$12.99"` and `"$1.50"` both passing. Wrong input causing a panic or weird number is fine *for this step* — we'll add forcing cases next that drive validation in.
+
+Take a swing. Show me your `ParseMoney` body.
+
+---
+
+**You:**
+
+ok done
+
+**Claude:**
+
+Got it. Minimal real parser:
+
+```go
+// internal/menu/money.go (replaces the fake-it body, adds imports)
+import (
+    "strconv"
+    "strings"
+)
+
+func ParseMoney(s string) (Money, error) {
+    s = strings.TrimPrefix(s, "$")
+    dollarsStr, centsStr, _ := strings.Cut(s, ".")
+    dollars, _ := strconv.Atoi(dollarsStr)
+    cents, _ := strconv.Atoi(centsStr)
+    return Money(dollars*100 + cents), nil
+}
+```
+
+```
+[Bash: go test -v -run TestParseMoney ./internal/menu/...]
+=== RUN   TestParseMoney/simple_positive_dollars_and_cents
+--- PASS: TestParseMoney/simple_positive_dollars_and_cents
+=== RUN   TestParseMoney/single-digit_dollars_and_partial_cents
+--- PASS: TestParseMoney/single-digit_dollars_and_partial_cents
+PASS
+```
+
+**GREEN.** Both cases pass.
+
+Worth flagging: this function is **correct for the two cases tested and broken for everything else.** Three `_` discards swallow real errors (against `go-error-handling/SKILL.md`), negatives produce silently-wrong numbers, `"$abc"` gives `Money(0)` with no error, `""` gives `Money(0)` with no error. The compiler is happy; the function is a trap.
+
+That's exactly what the next forcing cases would drive out:
+
+| Forcing input | What it forces into the code |
+|---|---|
+| `"-$1.50"` | Sign handling (parse the `-` before stripping `$`) |
+| `""` | Empty-input rejection |
+| `"$abc"` | Real strconv-error handling — no more `_`, use `%w` to wrap |
+| `"$12.9"` / `"$12.999"` | Cents must be exactly 2 digits |
+| `"12.99"` | `$` prefix required (the `TrimPrefix` no-op is dangerous) |
+| `"$12"` | Decimal point required |
+
+Each row = one more R→G cycle. Implementation grows a guard clause or branch each time. At the end, `ParseMoney` is robust and the test table is comprehensive.
+
+**Two natural off-ramps:**
+
+1. **Wrap Session 2 here.** Clean Red → Green → Red → real-Green cycle captured, fake-it explained, the remaining cycles are mechanical. Pedagogical point is made.
+2. **One more cycle for the example.** Pick the teaching-richest case — probably `"$abc"`, since it brings in proper error wrapping with `%w`, which is a Session 1 callback worth reinforcing.
+
+I lean **(1) wrap here** — Session 2 should showcase the cycle, not exhaust every edge case. Your call.
+
+---
+
+**You:**
+
+Lets wrap up session 2 here
+
+**Claude:**
+
+[Session captured to `example.md`. Two Red → Green cycles preserved (fake-it then real parser). Forcing-case table left in the transcript as the natural next-session starting point.]
+
+---
+
+## What this session shows (beginner `/tdd`)
+
+- **Strict one-case-at-a-time discipline.** Even when the user picked a slightly bigger jump (`$1.50` instead of the recommended `$0.00`), the cycle stayed one case at a time. Beginner mode pushes back on overshoot but doesn't override developer judgment.
+- **Fake-it-til-you-make-it as a teaching device.** The first GREEN was deliberately silly. The transcript names the technique and explains *why* it isn't a shortcut — it proves the test exercises the function before any real logic exists.
+- **Hints, not answers, in GREEN.** Claude listed the four parsing steps in the abstract and named the stdlib functions, but did not write the parser. The developer's "ok done" short-circuit was respected — Claude filled in the trivial step rather than belaboring it, which is the right read of beginner pacing when the developer has clearly absorbed the pattern.
+- **Honest GREEN.** The second GREEN passed but the response immediately flagged that the function was *correct for the cases tested and broken for everything else*. Beginner mode shouldn't let a misleading "all green" stand without naming the gap.
+- **Graceful off-ramp.** When the cycle pattern is established, the session offered two clear stopping points (wrap vs one more teaching case) instead of grinding through every forcing case. Example transcripts showcase *the cycle*, not exhaustive coverage.
+
+---
+
+### Session 3 — `/teach`: `context.Context` from scratch
+
+**Scenario:** Before touching repository code in a future session, the
+developer asks to understand `context.Context` from scratch. Pure
+conceptual session — no code lands.
+
+**Scope:** No files touched. Concept summary lives in the transcript.
+
+**Skills referenced:** `go-context`.
+
+**Outcome:** Three sub-topics covered (the problem Context solves,
+cancellation mechanics, where contexts originate and how to derive them).
+Developer wraps when satisfied.
+
+---
+
+**You:**
+
+```
+/teach context.Context. I need to understand it before we touch the repository.
+```
+
+**Claude:**
+
+Mode: **beginner**. `/teach` is question-driven — I'll explain, you push back on anything that doesn't land. No code will be written today.
+
+Quick calibration so I don't over- or under-shoot: which is closest to where you're starting?
+
+- Never heard of `context.Context` before today.
+- Seen it as the first parameter on Go functions, no idea what it does.
+- Vague sense it handles cancellation or timeouts.
+
+What's closest?
+
+---
+
+**You:**
+
+second one. I see ctx everywhere. whats it for?
+
+**Claude:**
+
+Good — that's exactly the right place to start. The short version: `context.Context` is Go's standard way to plumb three things through a chain of function calls:
+
+1. **Cancellation** — a signal saying "stop what you're doing, the caller doesn't care anymore."
+2. **Deadlines / timeouts** — a clock running underneath the cancellation: "stop if you take longer than 5 seconds."
+3. **Request-scoped values** — small bits of metadata that should flow with the call (trace IDs, user IDs) without polluting every function signature.
+
+Concrete example. Imagine your menu repository has a `GetItem(ctx, id)` that hits a database. Three things can happen mid-call:
+
+- The HTTP request that triggered it gets cancelled (user closed the tab). Without context, the DB query keeps running and returns to nobody. Wasted work.
+- The query takes 30 seconds for some reason. Without context, your API endpoint hangs indefinitely. With a 2-second deadline on ctx, the DB driver sees ctx expire and aborts the query.
+- A trace system wants to attach a span ID. With ctx, it rides along automatically — no parameter for every layer.
+
+That's the *why*. The *how*: every function that does I/O or waits on something takes `ctx context.Context` as its **first parameter** and respects whatever signal arrives on it.
+
+Want me to go deeper on cancellation mechanics, or on where contexts come from in the first place?
+
+---
+
+**You:**
+
+cancellation. how does the function know to stop?
+
+**Claude:**
+
+Two mechanisms, both stdlib.
+
+**`ctx.Done()`** returns a `<-chan struct{}` — a channel that closes when the context is cancelled. The canonical pattern:
+
+```go
+select {
+case <-ctx.Done():
+    return ctx.Err()  // tells you *why* it was cancelled
+case result := <-someWork:
+    return result, nil
+}
+```
+
+You wait on *both* the actual work and `ctx.Done()` at the same time. Whichever fires first wins.
+
+**`ctx.Err()`** tells you why the context was cancelled:
+
+- `context.Canceled` — caller explicitly cancelled.
+- `context.DeadlineExceeded` — timeout fired.
+- `nil` — context is still alive (don't normally call Err in this state).
+
+For functions that don't do channel work but make a lot of small steps (looping over DB rows, for example), the convention is to check `ctx.Err()` periodically:
+
+```go
+for rows.Next() {
+    if err := ctx.Err(); err != nil {
+        return nil, err
+    }
+    // process row
+}
+```
+
+Database drivers and HTTP clients in stdlib already do this internally — `http.Client.Do(req.WithContext(ctx))` cancels the in-flight request when ctx fires. You inherit cancellation for free *if you propagate ctx to them*.
+
+Next question naturally is: where do contexts come from in the first place? Want that?
+
+---
+
+**You:**
+
+yes
+
+**Claude:**
+
+Three roots and four derivations. That's the whole surface area.
+
+**Roots — where contexts originate:**
+
+- `context.Background()` — the canonical "no-cancellation" root. Use in `main`, in tests, anywhere the call chain originates outside a request.
+- `context.TODO()` — same thing at runtime, but says "I haven't decided what to plumb here yet." Useful as a placeholder during refactoring. Replace with `Background()` or a real ctx once you know.
+
+**Derivations — how you wrap a parent ctx with extra behavior:**
+
+- `ctx, cancel := context.WithCancel(parent)` — gives you a `cancel` function. Calling it cancels `ctx` and all its descendants. You must call `cancel` (usually `defer cancel()`) to release resources, even if you never actually intend to cancel — the runtime needs that signal to clean up.
+- `ctx, cancel := context.WithTimeout(parent, 5*time.Second)` — auto-cancels after the duration. Same `defer cancel()` rule.
+- `ctx, cancel := context.WithDeadline(parent, t)` — same idea, but takes an absolute time instead of a duration. Use when you have a hard wall-clock deadline (e.g., a request must finish before midnight).
+- `ctx = context.WithValue(parent, key, value)` — attaches a request-scoped value. No `cancel` returned. Used sparingly and only for things like request IDs or trace context, never application data.
+
+Concrete example — how ctx flows through a real call chain:
+
+```go
+func main() {
+    ctx := context.Background()
+    server := NewServer(ctx, ...)
+}
+
+// In an HTTP handler:
+func (h *Handler) GetItem(w http.ResponseWriter, r *http.Request) {
+    ctx, cancel := context.WithTimeout(r.Context(), 2*time.Second)
+    defer cancel()
+    item, err := h.repo.GetItem(ctx, id)
+    // ...
+}
+
+// In the repository:
+func (r *Repository) GetItem(ctx context.Context, id string) (*MenuItem, error) {
+    return r.db.QueryRowContext(ctx, "SELECT ...", id).Scan(...)
+}
+```
+
+ctx flows: `main → handler → repository → db driver`. Cancel a single parent and everything downstream stops.
+
+**Two rules that get violated a lot:**
+
+1. **Don't store ctx in a struct field.** Pass it as an argument every time. The exception is HTTP handlers, where the *request* carries its ctx — you extract it with `r.Context()` and pass it onward.
+2. **Don't pass `nil` for ctx.** Use `context.TODO()` if you genuinely don't have one yet.
+
+How's the model? Want me to go deeper on WithValue, or are we done?
+
+---
+
+**You:**
+
+done this is enough. wrap.
+
+**Claude:**
+
+[Session captured. No code written; concept summary lives in the transcript. Next time we touch the repository, ctx propagation should land without re-teaching.]
+
+---
+
+## What this session shows (beginner `/teach`)
+
+- **Calibration before content.** The opening turn asked which of three starting points was closest, not "what do you want to know." Cheaper than guessing wrong and re-teaching.
+- **One direction per turn.** Each Claude response ended with a single follow-up question, not a buffet. The developer drove the depth.
+- **No code lands.** `/teach` is conceptual. Code blocks appeared only as illustrative — not as a deliverable.
+
+---
+
+## Senior
+
+### Session 4 — `/review`: in-memory repository with a planted race
+
+**Scenario:** Developer drafted `internal/menu/repository.go` — an
+in-memory store over `MenuItem`. Asks for `/review`. The diff has a
+concurrency hazard and an error-style miss.
+
+**Scope:** 1 file (`repository.go`) + the implied test file.
+
+**Skills referenced:** `go-error-handling`, `go-concurrency`, `go-context`.
+
+**Outcome:** Two must-fix callouts (race, sentinel errors), one
+should-fix (ctx in signature). Sketch of the fixed version provided.
+Developer accepts, schedules `/debug` follow-up to reproduce the race.
+
+---
+
+**You:**
+
+```
+/review I drafted internal/menu/repository.go. In-memory store for now. Please review.
+```
+
+```go
+// internal/menu/repository.go
+package menu
+
+import "errors"
+
+type Repository struct {
+    items map[string]*MenuItem
+}
+
+func NewRepository() *Repository {
+    return &Repository{items: make(map[string]*MenuItem)}
+}
+
+func (r *Repository) Add(item *MenuItem) error {
+    if item == nil {
+        return errors.New("nil item")
+    }
+    r.items[item.ID] = item
+    return nil
+}
+
+func (r *Repository) Get(id string) (*MenuItem, error) {
+    item, ok := r.items[id]
+    if !ok {
+        return nil, errors.New("not found")
+    }
+    return item, nil
+}
+```
+
+**Claude:**
+
+Mode: **senior**. Five-axis review.
+
+**🔴 Correctness — concurrency hazard.** `r.items` is an unsynchronized map. Two goroutines into `Add`/`Get` — or two `Add`s racing — is undefined behavior. `go test -race` will fire instantly. In-memory repos are *always* hit concurrently in practice (HTTP handler pool), so this isn't theoretical.
+
+Fix: `sync.RWMutex` on Repository — `RLock` in Get, `Lock` in Add. RWMutex over plain Mutex because reads dominate writes on a menu read path.
+
+**🟡 Architecture — error semantics.** `errors.New("not found")` is opaque. Callers can't `errors.Is` against it without string matching, and `go-error-handling/SKILL.md` is explicit: sentinel errors for any condition callers might branch on. "Item not found" is exactly that — handlers route it to HTTP 404.
+
+Fix:
+
+```go
+var ErrItemNotFound = errors.New("menu: item not found")
+// ...
+return nil, fmt.Errorf("%w: id=%s", ErrItemNotFound, id)
+```
+
+Callers get the sentinel via `errors.Is` *and* the ID in the formatted message for logs. Same applies to the nil-check (or fold it under a generic `ErrInvalidInput` if no caller will branch on it specifically).
+
+**🟡 Architecture — context missing.** No `ctx context.Context` parameter. For an in-memory repo today it changes nothing, but the moment this gets swapped for a DB-backed implementation, every call site has to change. Define the interface with ctx now; the in-memory impl checks `ctx.Err()` and proceeds.
+
+**🟢 Readability.** Constructor is clean, exported names match team convention.
+
+**🟢 Performance.** O(1) map access; no concerns at this layer.
+
+Summary: two must-fix, one should-fix-now. Want the fixed sketch, or take a swing first?
+
+---
+
+**You:**
+
+sketch the fix.
+
+**Claude:**
+
+```go
+// internal/menu/repository.go
+package menu
+
+import (
+    "context"
+    "errors"
+    "fmt"
+    "sync"
+)
+
+var (
+    ErrItemNotFound = errors.New("menu: item not found")
+    ErrNilItem      = errors.New("menu: nil item")
+)
+
+type Repository struct {
+    mu    sync.RWMutex
+    items map[string]*MenuItem
+}
+
+func NewRepository() *Repository {
+    return &Repository{items: make(map[string]*MenuItem)}
+}
+
+func (r *Repository) Add(ctx context.Context, item *MenuItem) error {
+    if item == nil {
+        return ErrNilItem
+    }
+    if err := ctx.Err(); err != nil {
+        return err
+    }
+    r.mu.Lock()
+    defer r.mu.Unlock()
+    r.items[item.ID] = item
+    return nil
+}
+
+func (r *Repository) Get(ctx context.Context, id string) (*MenuItem, error) {
+    if err := ctx.Err(); err != nil {
+        return nil, err
+    }
+    r.mu.RLock()
+    defer r.mu.RUnlock()
+    item, ok := r.items[id]
+    if !ok {
+        return nil, fmt.Errorf("%w: id=%s", ErrItemNotFound, id)
+    }
+    return item, nil
+}
+```
+
+Two non-obvious calls worth flagging:
+
+- `ctx.Err()` check happens *before* the lock — cheap, no point grabbing a mutex if we're about to bail.
+- `fmt.Errorf` with `%w` is the wrap pattern: callers get `errors.Is(err, ErrItemNotFound)` for routing-to-404, and the ID still surfaces in the message for logs.
+
+A `TestRepository_ConcurrentAddGet` will be needed to lock in the race fix. Want me to drive that in a follow-up `/debug` or `/tdd` session?
+
+---
+
+**You:**
+
+yes follow up with /debug — I want to confirm the race reproduces first. wrap this review.
+
+**Claude:**
+
+[Review captured. Two must-fix landed in the sketch. Next session: `/debug` to reproduce the race against the original code and verify the fix closes it.]
+
+---
+
+## What this session shows (senior `/review`)
+
+- **Five-axis scan, severity-labeled.** Each finding led with 🔴/🟡/🟢 and one line of *what* before the *fix*. Senior tier doesn't pad explanations — the developer already knows why a race is a race.
+- **Skill citations only when load-bearing.** `go-error-handling/SKILL.md` named because the developer's draft contradicted it. No `go-concurrency` citation needed for the race — the finding speaks for itself.
+- **Fix on request, not by default.** Senior `/review` flags problems; the developer asks for sketches when they want them.
+
+---
+
+### Session 5 — `/debug`: items disappear under concurrent writes
+
+**Scenario:** Direct follow-up to Session 4. Developer reproduces the
+unsynchronized-map race that the `/review` flagged, then validates the
+fix closes it.
+
+**Scope:** `internal/menu/repository_test.go` (new regression test).
+
+**Skills referenced:** `go-concurrency`, `go-testing`.
+
+**Outcome:** Race reproduced under `-race`, fix from Session 4
+confirmed via a stronger regression that asserts *all* concurrent writes
+are visible afterwards (not just that the race detector stays quiet).
+
+---
+
+**You:**
+
+```
+/debug Items I add concurrently sometimes disappear from Get. Original repository code from before the review.
+```
+
+**Claude:**
+
+Mode: **senior**. Hypothesis-led.
+
+Symptom restated: concurrent `Add(item)` calls — some items end up unreachable via `Get(id)` later, even though `Add` returned `nil`.
+
+Strongest hypothesis up front (cheap to confirm): unsynchronized map access. Concurrent writes to a Go map are undefined behavior — Go's runtime sometimes detects it and panics with "concurrent map writes," but more often the map silently corrupts: entries vanish, lookups return wrong values, or the program crashes with a bus error.
+
+Verification step #1: reproduce under `-race`. The race detector will flag the unsynchronized access regardless of whether *visible* corruption fires in any given run.
+
+```go
+// internal/menu/repository_test.go
+func TestRepository_ConcurrentAddGetReproducesRace(t *testing.T) {
+    repo := NewRepository()
+    var wg sync.WaitGroup
+    for i := 0; i < 100; i++ {
+        wg.Add(1)
+        go func(i int) {
+            defer wg.Done()
+            id := fmt.Sprintf("item-%d", i)
+            _ = repo.Add(&MenuItem{ID: id, Name: id})
+            _, _ = repo.Get(id)
+        }(i)
+    }
+    wg.Wait()
+}
+```
+
+```
+[Bash: go test -race -run TestRepository_ConcurrentAddGetReproducesRace ./internal/menu/...]
+```
+
+What do you see?
+
+---
+
+**You:**
+
+WARNING: DATA RACE — Read at 0x... by goroutine 42, Previous write at 0x... by goroutine 17. Both on r.items in repository.go.
+
+**Claude:**
+
+Hypothesis confirmed. The race detector is showing exactly what we'd expect — concurrent read of `r.items` (from Get) overlapping a write (from Add) with no synchronization. That's the root cause of "items disappear": the map's internal state is being torn between the two access paths, and the visible disappearance is one of several symptoms of that corruption.
+
+Two legitimate fixes:
+
+- **`sync.RWMutex` on Repository** — `RLock`/`RUnlock` on reads, `Lock`/`Unlock` on writes. Predictable iteration order, no surprises. Recommended.
+- **`sync.Map`** — stdlib's concurrent map. Avoids the explicit lock dance but has a weird API (`Load`/`Store`/`Range`) and is only worth it under specific access patterns (write-once, read-many at high concurrency). Overkill here.
+
+Go with RWMutex — Session 4's review sketch already has it.
+
+To *prove* the fix closes the race rather than just papering over it, re-run with `-count=10` to reduce the chance of the race detector missing a narrow window:
+
+```
+[Bash: go test -race -count=10 -run TestRepository_ConcurrentAdd... ./internal/menu/...]
+PASS
+```
+
+Pass on all 10 = high confidence.
+
+One thing worth flagging on test quality: the current regression only verifies "no race fires." It doesn't verify "all 100 items are actually reachable after the writes complete." Stronger regression:
+
+```go
+func TestRepository_ConcurrentAddAllVisible(t *testing.T) {
+    repo := NewRepository()
+    const n = 100
+    ctx := context.Background()
+    var wg sync.WaitGroup
+    for i := 0; i < n; i++ {
+        wg.Add(1)
+        go func(i int) {
+            defer wg.Done()
+            id := fmt.Sprintf("item-%d", i)
+            if err := repo.Add(ctx, &MenuItem{ID: id, Name: id}); err != nil {
+                t.Errorf("Add: %v", err)
+            }
+        }(i)
+    }
+    wg.Wait()
+    for i := 0; i < n; i++ {
+        id := fmt.Sprintf("item-%d", i)
+        if _, err := repo.Get(ctx, id); err != nil {
+            t.Errorf("Get(%q) after concurrent Add: %v", id, err)
+        }
+    }
+}
+```
+
+Catches both the race (under `-race`) *and* the data-loss symptom (a missed item produces a Get error). This is the test you actually want in CI.
+
+Apply the Session 4 fix, run this against it. Should be green on `-race -count=10`.
+
+---
+
+**You:**
+
+nope green. wrap.
+
+**Claude:**
+
+[Race reproduced under `-race`, confirmed as the root cause of items-disappearing, fix verified via the stronger regression. Both tests now part of `internal/menu/repository_test.go`.]
+
+---
+
+## What this session shows (senior `/debug`)
+
+- **Hypothesis up front, not bisect-first.** The strongest hypothesis (unsynchronized map) was named in turn one with a verification step. Senior debugging skips the "what are you observing exactly" interview when the symptom is already specific.
+- **Two regressions, not one.** The first regression just confirms "race detector stays quiet" — not enough. The session pushed for a second regression that asserts the *visible* symptom (data loss) is closed too. Race-detector pass alone hides timing-window misses.
+- **Reproduce, don't speculate.** Even with high confidence in the hypothesis, the session ran the test before declaring victory. "Pretty sure that's the bug" is not a fix.
+
+---
+
+## Staff
+
+### Session 6 — `/scope`: pricing rules engine initiative
+
+**Scenario:** New initiative — pricing rules engine for happy hour,
+customer-tier discounts, combo deals. Multi-phase plan with rollout
+considerations. Staff mode: design forces locked before phasing.
+
+**Scope discussed:** multi-file initiative — `internal/pricing/*` (new
+package), eventual menu HTTP layer wiring, eventual DB-backed rule
+store.
+
+**Skills referenced:** `go-interfaces`, `go-error-handling`, `go-context`.
+Routes to `agent-skills:spec` for the Rule interface contract.
+
+**Outcome:** 5-phase plan with per-phase rollback. Five architectural
+decisions pinned (storage, evaluation order, idempotency, failure mode,
+dependency direction). Spec routed before phase 1 code.
+
+---
+
+**You:**
+
+```
+/scope add a pricing rules engine. Need to support happy hour, customer-tier pricing (loyalty / staff / VIP), and combo deals (buy two get one).
+```
+
+**Claude:**
+
+Mode: **staff**. Before phasing, five design forces I want pinned — each one constrains every phase that follows.
+
+**1. Rule storage.**
+
+- *In code* (`var rules = []Rule{...}`). Cheapest. Every rule change is a deploy. Fine for a small fixed set; awful for happy-hour windows that ops needs to flip without engineering.
+- *In database*. Ops-friendly. Adds a load path, a cache-invalidation problem, and a "what if the DB is down" failure mode for pricing.
+- *In config service* (flag vendor). Same as DB but with built-in flag semantics. Costs you a vendor dependency.
+
+Recommendation: **in code for phase 1**, *interface* designed so swapping to DB later is mechanical. Don't pay cache/invalidation cost on day one for a feature whose scope you're still discovering.
+
+**2. Evaluation order — stacking semantics.**
+
+- Apply all matching rules sequentially. Deterministic but discount stacking explodes — VIP at happy hour during a combo gets four rules layered.
+- Pick one rule per pricing event via an explicit priority field. Predictable, auditable.
+
+Recommendation: **explicit priority field on Rule**. Highest-priority matching rule wins. Stacking becomes a deliberate rule-author choice ("VIP-during-happy-hour" is its own rule), not emergent behavior.
+
+**3. Idempotency.** Is pricing a *function* of `(item, customer, time)` — same answer every call — or does the engine mutate state (e.g., "100 free coffees per day" counter)?
+
+Recommendation: **idempotent for v1**. No counters, no state mutation. Coupons-with-redemption-limits is a separate problem.
+
+**4. Failure mode — rule evaluation errors.**
+
+- *Fail closed* — return error, refuse to price. Safe but every malformed rule takes down a checkout.
+- *Fail open with logging* — fall back to `MenuItem.BasePrice`, log loudly. Customers pay base price; ops sees the alert.
+
+Recommendation: **fail open**. Pricing-engine bugs shouldn't block transactions; they should produce alerts.
+
+**5. Dependency direction.** Engine sits *between* MenuItem retrieval and HTTP response. Repository returns base prices; engine produces effective prices for a given customer context. Engine doesn't touch the repository — single-direction dependency.
+
+Push back on any of these, or move to phasing.
+
+---
+
+**You:**
+
+all good. Rules in code first, priority field, idempotent, fail open. lets phase.
+
+**Claude:**
+
+Locked.
+
+**📋 Initiative: pricing rules engine — total phases: 5**
+
+**Phase 1 — Rule interface + evaluation engine (code-stored rules)**
+- `internal/pricing/rule.go` (new) — `Rule` interface, `PricingContext` struct (item, customer, time).
+- `internal/pricing/engine.go` (new) — `Engine.Price(ctx, PricingContext) (Money, error)` with fail-open semantics.
+- `internal/pricing/{rule,engine}_test.go` (new)
+- **Deliverable:** stand-alone engine with two stub rules in tests. No menu integration yet.
+
+**Phase 2 — Concrete rules: happy hour + customer tier**
+- `internal/pricing/rules/happyhour.go` (new) — time-window rule.
+- `internal/pricing/rules/tier.go` (new) — customer-tier rule.
+- Tests for each.
+- **Deliverable:** two real rules, registered with the engine via a builder. Still no menu integration.
+
+**Phase 3 — Combo deal rule**
+- `internal/pricing/rules/combo.go` (new) — requires `PricingContext` to carry the full cart, not just a single item.
+- Refactor `PricingContext` to support multi-item evaluation.
+- **Deliverable:** combo rule wired in. **Riskiest phase** — forces a context-shape change that ripples back to phase 1's interface.
+
+**Phase 4 — Wire into menu HTTP layer**
+- `internal/menu/handler.go` (modify) — accept customer ID from headers/session, call engine, return effective price alongside `MenuItem`.
+- **Deliverable:** customer-facing API returns effective pricing. Dark-launched behind a header flag.
+
+**Phase 5 — Rule storage migration to DB**
+- `internal/pricing/store.go` (new) — Rule storage interface.
+- DB-backed implementation. In-code rules kept as a fallback when store unavailable.
+- **Deliverable:** ops can edit rules without deploys.
+
+**Rollback per phase:** every phase ships behind `PRICING_ENGINE_ENABLED=false`. Default off until phase 4 dark-launches. Flag check happens at request time so flip is hot.
+
+**Phase ordering rationale:** interface before concrete rules (phase 1 → 2) lets us delete-and-replace rules without engine churn. Combo (phase 3) before menu integration (phase 4) means the context shape stabilizes before any external API depends on it. Store migration (phase 5) last because it's the most reversible — moving from "in code" to "in DB" is purely additive.
+
+**One lifecycle gap.** The Rule *interface contract* needs a written spec before phase 1 code lands — what does a rule return for non-applicable cases, what's the priority comparison rule, what happens if two rules tie on priority, what's the engine's contract for fail-open. Repo has no local `/spec` command; this is exactly the gap `agent-skills:spec` is designed for.
+
+Recommend routing to `agent-skills:spec` for the Rule interface contract before phase 1 `/tdd`. Sign off?
+
+---
+
+**You:**
+
+yes route to agent-skills:spec, wrap /scope.
+
+**Claude:**
+
+[Phase plan captured. Handing off to `agent-skills:spec` for the Rule interface contract. Will bring the spec back for sign-off before `/tdd` Phase 1.]
+
+---
+
+## What this session shows (staff `/scope`)
+
+- **Design before phases.** Five architectural forces named and recommended before any phase boundary was drawn. Phases derive from the design — a phase plan without those decisions locked is busywork.
+- **Rollback baked into every phase.** Each phase ships behind a flag with a documented flip path. Staff-level scoping doesn't separate "build" from "operate."
+- **Lifecycle gap surfaced honestly.** The Rule contract belongs in a spec, and the repo has no local `/spec` command. The session routed to `agent-skills:spec` explicitly — local first, agent-skills for gaps, per CLAUDE.md.
+
+---
+
+### Session 7 — `/pair`: POS sync gateway
+
+**Scenario:** Design and begin a sync gateway between this service and
+a downstream POS for menu updates. Staff `/pair` — architecture-first
+conversation, interface sketched, code deferred to spec + phase 1.
+
+**Scope discussed:** new `internal/sync` package; eventual durable
+outbox pattern over the menu DB.
+
+**Skills referenced:** `go-interfaces`, `go-context`, `go-error-handling`,
+`go-concurrency`. Routes to `agent-skills:spec` for the Sender contract.
+
+**Outcome:** Five design forces resolved (push, idempotency key,
+per-item retry, thick gateway, loose coupling). Gateway/Sender interface
+sketch. Two-phase rollout (in-memory → durable outbox) agreed. Spec
+routed before phase 1 code.
+
+---
+
+**You:**
+
+```
+/pair build a sync gateway between this service and a downstream POS for menu updates.
+```
+
+**Claude:**
+
+Mode: **staff**. Architecture first. Five forces I need pinned before any code:
+
+**1. Push vs pull.**
+- *Push* — we POST to POS on every menu change. Real-time, but every retry, dead-letter, and idempotency concern lives in our code.
+- *Pull* — POS polls us for changes since timestamp X. Simpler for us, POS controls freshness budget.
+
+Which does the POS support? If both, push gives lower latency at higher operational complexity.
+
+**2. Idempotency.** At-least-once delivery means the POS *will* receive the same update twice. Two options:
+- POS handles idempotency on its end (idempotency-key header → 200 if already applied).
+- We track delivery state (`menu_sync_deliveries` table) and never resend.
+
+Recommendation: **idempotency key from our side, POS dedupes**. Cleaner separation. Stable keys per `(item_id, change_version)` so the same logical change always gets the same key.
+
+**3. Partial failure.** Batch of 50: 48 succeed, 2 fail.
+- All-or-nothing rollback — strong consistency, heavy contract requirement on POS.
+- Per-item with retry queue — eventually consistent, the realistic default.
+- Per-item, no retry — alert and reconcile manually. Cheap, operationally painful.
+
+Recommendation: **per-item retry queue** with explicit retry policy (max attempts, backoff, dead-letter).
+
+**4. Where the abstraction line sits.**
+- *Thin* — `Sender.Send(ctx, update) error`. Caller handles batching, retries, idempotency keys.
+- *Thick* — `Gateway.PublishMenuChange(ctx, change) error`. Gateway internalizes all policy.
+
+Recommendation: **thick gateway, thin Sender inside**. Gateway is policy; Sender is transport. Test gateway against stub Sender; swap stub for real POS without touching policy.
+
+**5. Coupling to POS availability.**
+- *Tight* — block menu publishes until POS confirms. Pricing accuracy critical, POS down = menu authoring down.
+- *Loose* — publish to our DB immediately, queue for POS, alert on queue depth. Source of truth lives here.
+
+Recommendation: **loose coupling**. Source of truth lives here. POS is a consumer.
+
+Push back on any of these. The architecture *is* the work today.
+
+---
+
+**You:**
+
+push. idempotency key from our side. per-item retry. thick gateway. loose coupling.
+
+**Claude:**
+
+Locked. The shape:
+
+```go
+// internal/sync/gateway.go (sketch — not for merge)
+package sync
+
+import (
+    "context"
+    "github.com/yourorg/yourrepo/internal/menu"
+)
+
+// Gateway publishes menu changes to a downstream consumer (POS).
+// Loose coupling: PublishMenuChange returns once the change is queued,
+// not once the POS has confirmed.
+type Gateway interface {
+    PublishMenuChange(ctx context.Context, change MenuChange) error
+}
+
+// MenuChange is the unit of replication. ChangeID is stable per logical
+// change — same item + same revision yields the same ChangeID — and is
+// used as the POS-side idempotency key.
+type MenuChange struct {
+    ChangeID string
+    Type     ChangeType // Create, Update, Delete
+    Item     *menu.MenuItem
+}
+
+type ChangeType int
+
+const (
+    ChangeCreate ChangeType = iota
+    ChangeUpdate
+    ChangeDelete
+)
+
+// Sender is the transport boundary. Implementations:
+//   HTTPSender (real POS), StubSender (tests), FakeSender (local dev).
+type Sender interface {
+    Send(ctx context.Context, change MenuChange) error
+}
+```
+
+Gateway internals (not in the sketch): in-memory queue, worker pool calling Sender with retry policy, dead-letter sink. Queue can move to a durable store (e.g., Postgres outbox pattern) in a later phase once the volume is known.
+
+**Two-phase rollout, called out before any code:**
+
+- **Phase 1 — in-memory queue, single worker.** Single-process, in-memory. Crash = lost queue. Acceptable for dev/staging to learn the failure shapes.
+- **Phase 2 — durable outbox.** Writes to `menu_outbox` table in the *same DB transaction* as the menu update. Worker reads from outbox, sends, marks delivered. Crash-safe. Production shape.
+
+Phase 1 → 2 is a worker swap; Gateway interface stays the same. That's what protects the rollout.
+
+**Spec gap.** Same shape as Session 6: the Sender contract — what counts as retryable, timeout semantics, what the POS is allowed to return — needs to be written down before phase 1 lands. Routing to `agent-skills:spec`.
+
+**Test strategy.** TDD on the Gateway uses `StubSender` to assert: idempotency keys are stable across retries; retry policy fires on retryable errors; non-retryable errors go to dead-letter immediately; ctx cancellation aborts in-flight work cleanly. No real POS in tests.
+
+Want to spec, or fork to spike-then-test on the queue/worker mechanics first?
+
+---
+
+**You:**
+
+spec first, then phase 1. wrap.
+
+**Claude:**
+
+[Design captured. Routing to `agent-skills:spec` for the Sender contract. Phase 1 (in-memory single-worker) ships after spec review. Phase 2 (durable outbox) deferred to the natural next iteration once phase 1's failure modes are understood.]
+
+---
+
+## What this session shows (staff `/pair`)
+
+- **Forces before code, every time.** Even with the developer ready to build, the session refused to draft an interface until five design questions were resolved. The shape of the interface falls out of those answers — drafting first risks rebuilding it after.
+- **Rollout shape inseparable from design.** The two-phase plan (in-memory → durable outbox) was surfaced as part of the design conversation, not after. Staff design includes the deploy story.
+- **Local first, agent-skills for gaps.** Per CLAUDE.md, the local `/pair` covers the design conversation, and `agent-skills:spec` is invoked specifically because writing a contract spec is a lifecycle gap the local commands don't cover.
+
+---
+
+## What Changes Across Modes
+
+Reading the seven sessions side by side:
 
 | Aspect | beginner | senior | staff |
 |---|---|---|---|
 | Tests come first? | Yes | Yes | Yes (after the design is locked) |
-| Skills consulted? | Yes — named inline | Yes — silent unless non-obvious | Yes — silent |
-| Scope announced? | Yes — small phase | Yes — one sitting | Yes — multi-phase plan |
+| Skills consulted? | Yes — named inline | Yes — silent unless load-bearing | Yes — silent |
+| Scope announced? | Yes — small phase, often single function | Yes — one reviewable sitting | Yes — multi-phase plan with rollback |
 | Idiom narration | Always, first time each appears | Only when non-obvious | Skipped |
-| Opening move | Teaching + design Q's | One-line plan, agree-or-pushback | Design conversation: failure modes, blast radius, rollout |
-| Mid-stream check-ins | After each red→green step | One inline call-out | One alignment check before /scope |
-| Scope per task | Small, often one function | One reviewable sitting | Phase plan, multi-sitting |
-| agent-skills used? | No (local covers it) | No (local covers it) | Yes — for spec authoring (lifecycle gap) |
+| Opening move | Teaching + design questions | One-line plan, agree-or-pushback | Design conversation: forces, failure modes, rollout |
+| Mid-stream check-ins | After each red → green step | One inline call-out | One alignment check before scoping |
 | Pre-commit self-check | Walk-through with a comprehension question | Quick checklist | Per-phase, plus rollout/rollback verification |
+| agent-skills used? | No (local covers it) | No (local covers it) | Yes — for spec authoring (lifecycle gap) |
 
 The discipline is identical across all three modes. The narration adapts
 to the audience. If a session in your own work doesn't feel like one of
-these three, that's a signal to either change `/mode` or push back on
+these seven, that's a signal to either change `/mode` or push back on
 Claude's pacing.
